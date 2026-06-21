@@ -36,6 +36,23 @@ let bundle = null;
 /** @type {Map<string, number>} */
 let godRank = new Map();
 
+/** @type {Map<string, string>} */
+let godLabelToCode = new Map();
+
+function rowGodClass(entry) {
+  const godNames = String(entry.god ?? "")
+    .split("·")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (godNames.length > 1) return "row-god-multi";
+  if (entry.god_code) return `row-god-${String(entry.god_code).toLowerCase()}`;
+  if (godNames.length === 1) {
+    const code = godLabelToCode.get(godNames[0]);
+    if (code) return `row-god-${code.toLowerCase()}`;
+  }
+  return "";
+}
+
 function sparkMatchesCost(min, max, cardCost) {
   if (min <= cardCost && cardCost <= max) return true;
   if (min === -1 && max === 0 && cardCost >= 0) return true;
@@ -224,6 +241,8 @@ function buildResultTableHead() {
 
 function appendResultRow(tbody, entry) {
   const tr = document.createElement("tr");
+  const godClass = rowGodClass(entry);
+  if (godClass) tr.className = godClass;
   for (const col of visibleColumns()) {
     const td = document.createElement("td");
     if (col.mono) td.className = "mono";
@@ -446,13 +465,34 @@ function buildUI(meta) {
   );
 }
 
+function buildGodLegend(meta) {
+  const el = document.getElementById("god-legend");
+  el.replaceChildren();
+  for (const g of meta.gods) {
+    const span = document.createElement("span");
+    const swatch = document.createElement("i");
+    swatch.className = `god-${g.code.toLowerCase()}`;
+    span.appendChild(swatch);
+    span.appendChild(document.createTextNode(g.label));
+    el.appendChild(span);
+  }
+  const multi = document.createElement("span");
+  const multiSwatch = document.createElement("i");
+  multiSwatch.className = "god-multi";
+  multi.appendChild(multiSwatch);
+  multi.appendChild(document.createTextNode("신 공통(묶음)"));
+  el.appendChild(multi);
+}
+
 async function loadData() {
   const res = await fetch("data/lookup.json");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   bundle = await res.json();
   godRank = new Map(bundle.meta.gods.map((g, i) => [g.label, i]));
+  godLabelToCode = new Map(bundle.meta.gods.map((g) => [g.label, g.code]));
   visibleColumnKeys = loadVisibleColumns();
   buildColumnPicker();
+  buildGodLegend(bundle.meta);
   buildResultTableHead();
   buildUI(bundle.meta);
   refresh();

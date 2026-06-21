@@ -7,6 +7,13 @@
   --accent: #5b8def;
   --accent-dim: #3d5a8a;
   --row-hover: #243044;
+  --god-nihilum: #6eb0ff;
+  --god-diallos: #e8c06a;
+  --god-circen: #f0b5a0;
+  --god-secred: #6fd97a;
+  --god-vitor: #f07070;
+  --god-caligo: #b39cff;
+  --god-multi: #a8b8d0;
   --radius: 8px;
   --font: "Segoe UI", "Malgun Gothic", sans-serif;
 }
@@ -243,6 +250,96 @@ th {
 tbody tr:hover {
   background: var(--row-hover);
 }
+
+tbody tr[class*="row-god-"] {
+  color: #f2f6fc;
+}
+
+tbody tr[class*="row-god-"] td.mono {
+  color: #e2eaf6;
+}
+
+tbody tr.row-god-nihilum {
+  background: color-mix(in srgb, var(--god-nihilum) 16%, var(--panel));
+  box-shadow: inset 3px 0 0 var(--god-nihilum);
+}
+tbody tr.row-god-diallos {
+  background: color-mix(in srgb, var(--god-diallos) 16%, var(--panel));
+  box-shadow: inset 3px 0 0 var(--god-diallos);
+}
+tbody tr.row-god-secred {
+  background: color-mix(in srgb, var(--god-secred) 16%, var(--panel));
+  box-shadow: inset 3px 0 0 var(--god-secred);
+}
+tbody tr.row-god-circen {
+  background: color-mix(in srgb, var(--god-circen) 16%, var(--panel));
+  box-shadow: inset 3px 0 0 var(--god-circen);
+}
+tbody tr.row-god-vitor {
+  background: color-mix(in srgb, var(--god-vitor) 16%, var(--panel));
+  box-shadow: inset 3px 0 0 var(--god-vitor);
+}
+tbody tr.row-god-caligo {
+  background: color-mix(in srgb, var(--god-caligo) 16%, var(--panel));
+  box-shadow: inset 3px 0 0 var(--god-caligo);
+}
+tbody tr.row-god-multi {
+  background: color-mix(in srgb, var(--god-multi) 12%, var(--panel));
+  box-shadow: inset 3px 0 0 var(--god-multi);
+}
+
+tbody tr.row-god-nihilum:hover {
+  background: color-mix(in srgb, var(--god-nihilum) 24%, var(--panel));
+}
+tbody tr.row-god-diallos:hover {
+  background: color-mix(in srgb, var(--god-diallos) 24%, var(--panel));
+}
+tbody tr.row-god-secred:hover {
+  background: color-mix(in srgb, var(--god-secred) 24%, var(--panel));
+}
+tbody tr.row-god-circen:hover {
+  background: color-mix(in srgb, var(--god-circen) 24%, var(--panel));
+}
+tbody tr.row-god-vitor:hover {
+  background: color-mix(in srgb, var(--god-vitor) 24%, var(--panel));
+}
+tbody tr.row-god-caligo:hover {
+  background: color-mix(in srgb, var(--god-caligo) 24%, var(--panel));
+}
+tbody tr.row-god-multi:hover {
+  background: color-mix(in srgb, var(--god-multi) 20%, var(--panel));
+}
+
+.god-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.god-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.god-legend i {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.god-legend i.god-nihilum { background: var(--god-nihilum); }
+.god-legend i.god-diallos { background: var(--god-diallos); }
+.god-legend i.god-secred { background: var(--god-secred); }
+.god-legend i.god-circen { background: var(--god-circen); }
+.god-legend i.god-vitor { background: var(--god-vitor); }
+.god-legend i.god-caligo { background: var(--god-caligo); }
+.god-legend i.god-multi { background: var(--god-multi); }
 
 td.mono {
   font-family: ui-monospace, Consolas, monospace;
