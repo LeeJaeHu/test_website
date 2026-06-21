@@ -57,6 +57,7 @@ function mergeGodClones(members) {
     mode: first.mode,
     god: gods.join(" · "),
     description: first.description,
+    conditions: first.conditions ?? "",
     weight,
   };
 }
@@ -76,6 +77,7 @@ function mergeSameGodVariants(members) {
     mode: first.mode,
     god: first.god,
     description,
+    conditions: first.conditions ?? "",
     weight,
   };
 }
@@ -191,12 +193,13 @@ function refresh() {
     for (const e of matched) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="mono">${escapeHtml(e.id)}</td>
         <td>${escapeHtml(e.sheet)}</td>
+        <td>${escapeHtml(e.description)}</td>
+        <td>${escapeHtml(e.conditions ?? "")}</td>
+        <td>${escapeHtml(String(e.weight))}</td>
         <td>${escapeHtml(e.mode)}</td>
         <td>${escapeHtml(e.god)}</td>
-        <td>${escapeHtml(e.description)}</td>
-        <td>${escapeHtml(String(e.weight))}</td>`;
+        <td class="mono">${escapeHtml(e.id)}</td>`;
       tbody.appendChild(tr);
     }
   }
