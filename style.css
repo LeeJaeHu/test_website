@@ -1,0 +1,274 @@
+:root {
+  --bg: #0f1419;
+  --panel: #1a2332;
+  --border: #2d3a4d;
+  --text: #e8edf4;
+  --muted: #8b9cb3;
+  --accent: #5b8def;
+  --accent-dim: #3d5a8a;
+  --row-hover: #243044;
+  --radius: 8px;
+  --font: "Segoe UI", "Malgun Gothic", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.site-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #151c28 0%, var(--bg) 100%);
+}
+
+.site-header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+  font-weight: 650;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 1rem;
+  padding: 1rem 1.5rem 2rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+fieldset {
+  border: none;
+  margin: 0 0 0.85rem;
+  padding: 0;
+}
+
+legend {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.radio-row,
+.check-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.25rem 0.5rem;
+}
+
+label.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tag-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.tag-row .tag-label {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag-states {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.help-btn,
+.link-btn,
+.secondary-btn {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.help-btn {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
+.link-btn {
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.75rem;
+}
+
+.secondary-btn {
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.checkbox-line {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.75rem 0;
+  font-size: 0.85rem;
+}
+
+.count {
+  margin: 0.5rem 0 0;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 10rem);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #243044;
+}
+
+th,
+td {
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+tbody tr:hover {
+  background: var(--row-hover);
+}
+
+td.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+}
+
+td.mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.site-footer {
+  padding: 0 1.5rem 1.5rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.site-footer code {
+  background: var(--panel);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+}
+
+dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  padding: 1rem 1.25rem;
+  max-width: 32rem;
+}
+
+dialog pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 1rem;
+}
+
+dialog form button {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}

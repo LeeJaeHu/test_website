@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>카오스 제로 나이트메어 — 신 번뜩임 조회</title>
+    <meta
+      name="description"
+      content="카드 조건(코스트·유형·직업·태그)에 맞는 신 번뜩임을 조회합니다. 비공식 팬 도구, 오프라인 동작."
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>신 번뜩임 카드 조회</h1>
+      <p class="subtitle">Chaos Zero Nightmare · 비공식 팬 도구 · 브라우저에서만 동작</p>
+    </header>
+
+    <main class="layout">
+      <aside class="panel filters" aria-label="카드 조건">
+        <h2>카드 조건</h2>
+
+        <fieldset>
+          <legend>코스트 (0~4)</legend>
+          <div class="radio-row" id="cost-row"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>카드 유형</legend>
+          <div class="radio-row" id="type-row"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>
+            런 모드
+            <button type="button" class="help-btn" id="mode-help" title="런 모드 설명">?</button>
+          </legend>
+          <div class="radio-row" id="mode-row"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>
+            신 (복수 선택)
+            <button type="button" class="link-btn" id="god-all">전체</button>
+            <button type="button" class="link-btn" id="god-none">해제</button>
+          </legend>
+          <div class="check-grid" id="god-row"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>직업</legend>
+          <div class="radio-row" id="class-row"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>
+            카드 태그
+            <button type="button" class="help-btn" id="tag-help" title="태그 선택 설명">?</button>
+          </legend>
+          <p class="hint">무관 · 포함 · 없음</p>
+          <div id="tag-rows"></div>
+          <button type="button" class="secondary-btn" id="reset-tags">태그 전체 무관</button>
+        </fieldset>
+
+        <label class="checkbox-line">
+          <input type="checkbox" id="dedupe" checked />
+          신별 동일 효과 묶기
+        </label>
+
+        <p class="count" id="count-label">불러오는 중…</p>
+      </aside>
+
+      <section class="panel results" aria-label="조회 결과">
+        <h2>조건에 맞는 신 번뜩임</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>시트</th>
+                <th>모드</th>
+                <th>신</th>
+                <th>설명</th>
+                <th>가중치</th>
+              </tr>
+            </thead>
+            <tbody id="result-body">
+              <tr>
+                <td colspan="6" class="empty">데이터 로드 중…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        게임 데이터 기반 비공식 도구입니다. 패치 후
+        <code>python export_web_data.py</code>로 JSON을 갱신하세요.
+      </p>
+    </footer>
+
+    <dialog id="help-dialog">
+      <form method="dialog">
+        <h3 id="help-title"></h3>
+        <pre id="help-body"></pre>
+        <button value="close">닫기</button>
+      </form>
+    </dialog>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
