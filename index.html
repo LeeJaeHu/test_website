@@ -71,23 +71,25 @@
       </aside>
 
       <section class="panel results" aria-label="조회 결과">
-        <h2>조건에 맞는 신 번뜩임</h2>
+        <div class="results-toolbar">
+          <h2>조건에 맞는 신 번뜩임</h2>
+          <fieldset class="column-picker">
+            <legend>
+              표시 열
+              <button type="button" class="link-btn" id="cols-all">전체</button>
+              <button type="button" class="link-btn" id="cols-minimal">요약</button>
+            </legend>
+            <div class="column-picker-row" id="column-picker"></div>
+          </fieldset>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>시트</th>
-                <th>설명</th>
-                <th>조건</th>
-                <th>가중치</th>
-                <th>모드</th>
-                <th>신</th>
-                <th>ID</th>
-              </tr>
+              <tr></tr>
             </thead>
             <tbody id="result-body">
               <tr>
-                <td colspan="6" class="empty">데이터 로드 중…</td>
+                <td colspan="7" class="empty">데이터 로드 중…</td>
               </tr>
             </tbody>
           </table>
@@ -110,6 +112,6 @@
       </form>
     </dialog>
 
-    <script src="app.js" type="module"></script>
+    <script src="app.js?v=4" type="module"></script>
   </body>
 </html>

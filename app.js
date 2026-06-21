@@ -15,6 +15,21 @@ const TAG_STATE_HELP =
   "· 없음: 없음 → 이 태그를 요구하는 번뜩임 제거\n\n" +
   "소멸(exhaust): 카드 extra_tag와 TALENT_EXHAUST(소멸)를 동일하게 처리합니다.";
 
+const RESULT_COLUMNS = [
+  { key: "sheet", label: "시트", mono: false, width: "6rem" },
+  { key: "description", label: "설명", mono: false, width: "22%" },
+  { key: "conditions", label: "조건", mono: false, width: "28%" },
+  { key: "weight", label: "가중치", mono: false, width: "4.5rem" },
+  { key: "mode", label: "모드", mono: false, width: "3.5rem" },
+  { key: "god", label: "신", mono: false, width: "6rem" },
+  { key: "id", label: "ID", mono: true, width: "14%" },
+];
+
+const VISIBLE_COLS_KEY = "spark-lookup-visible-cols";
+
+/** @type {Set<string>} */
+let visibleColumnKeys = new Set();
+
 /** @type {{ meta: object, entries: object[] } | null} */
 let bundle = null;
 
@@ -168,6 +183,107 @@ function matchEntry(e, f) {
   return true;
 }
 
+function loadVisibleColumns() {
+  try {
+    const raw = localStorage.getItem(VISIBLE_COLS_KEY);
+    if (!raw) return new Set(RESULT_COLUMNS.map((c) => c.key));
+    const keys = JSON.parse(raw);
+    if (!Array.isArray(keys) || !keys.length) return new Set(RESULT_COLUMNS.map((c) => c.key));
+    const valid = keys.filter((k) => RESULT_COLUMNS.some((c) => c.key === k));
+    return valid.length ? new Set(valid) : new Set(RESULT_COLUMNS.map((c) => c.key));
+  } catch {
+    return new Set(RESULT_COLUMNS.map((c) => c.key));
+  }
+}
+
+function saveVisibleColumns() {
+  localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify([...visibleColumnKeys]));
+}
+
+function visibleColumns() {
+  return RESULT_COLUMNS.filter((c) => visibleColumnKeys.has(c.key));
+}
+
+function rowCellValue(entry, key) {
+  const v = entry[key];
+  if (v === undefined || v === null) return "";
+  return String(v);
+}
+
+function buildResultTableHead() {
+  const thead = document.querySelector(".results table thead tr");
+  thead.replaceChildren();
+  for (const col of visibleColumns()) {
+    const th = document.createElement("th");
+    th.textContent = col.label;
+    th.dataset.col = col.key;
+    th.style.width = col.width;
+    thead.appendChild(th);
+  }
+}
+
+function appendResultRow(tbody, entry) {
+  const tr = document.createElement("tr");
+  for (const col of visibleColumns()) {
+    const td = document.createElement("td");
+    if (col.mono) td.className = "mono";
+    td.dataset.col = col.key;
+    td.textContent = rowCellValue(entry, col.key);
+    tr.appendChild(td);
+  }
+  tbody.appendChild(tr);
+}
+
+function buildColumnPicker() {
+  const row = document.getElementById("column-picker");
+  row.replaceChildren();
+  for (const col of RESULT_COLUMNS) {
+    const id = `col-${col.key}`;
+    const label = document.createElement("label");
+    label.className = "inline";
+    const checked = visibleColumnKeys.has(col.key) ? "checked" : "";
+    label.innerHTML = `<input type="checkbox" id="${id}" data-col-key="${col.key}" ${checked} /> ${escapeHtml(col.label)}`;
+    row.appendChild(label);
+    label.querySelector("input").addEventListener("change", (ev) => {
+      const input = /** @type {HTMLInputElement} */ (ev.target);
+      const key = input.getAttribute("data-col-key");
+      if (!key) return;
+      if (input.checked) {
+        visibleColumnKeys.add(key);
+      } else if (visibleColumnKeys.size <= 1) {
+        input.checked = true;
+        return;
+      } else {
+        visibleColumnKeys.delete(key);
+      }
+      saveVisibleColumns();
+      buildResultTableHead();
+      refresh();
+    });
+  }
+
+  document.getElementById("cols-all").addEventListener("click", () => {
+    visibleColumnKeys = new Set(RESULT_COLUMNS.map((c) => c.key));
+    saveVisibleColumns();
+    row.querySelectorAll("input[type=checkbox]").forEach((el) => {
+      /** @type {HTMLInputElement} */ (el).checked = true;
+    });
+    buildResultTableHead();
+    refresh();
+  });
+
+  document.getElementById("cols-minimal").addEventListener("click", () => {
+    visibleColumnKeys = new Set(["description", "conditions", "weight"]);
+    saveVisibleColumns();
+    row.querySelectorAll("input[type=checkbox]").forEach((el) => {
+      const key = el.getAttribute("data-col-key");
+      /** @type {HTMLInputElement} */ (el).checked = key ? visibleColumnKeys.has(key) : false;
+    });
+    buildResultTableHead();
+    refresh();
+  });
+}
+
 function refresh() {
   if (!bundle) return;
   const f = getFilters();
@@ -184,23 +300,19 @@ function refresh() {
   });
 
   const tbody = document.getElementById("result-body");
+  const colCount = visibleColumns().length;
   tbody.replaceChildren();
   if (!matched.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = '<td colspan="6" class="empty">조건에 맞는 번뜩임 없음</td>';
+    const td = document.createElement("td");
+    td.colSpan = colCount || 1;
+    td.className = "empty";
+    td.textContent = "조건에 맞는 번뜩임 없음";
+    tr.appendChild(td);
     tbody.appendChild(tr);
   } else {
     for (const e of matched) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(e.sheet)}</td>
-        <td>${escapeHtml(e.description)}</td>
-        <td>${escapeHtml(e.conditions ?? "")}</td>
-        <td>${escapeHtml(String(e.weight))}</td>
-        <td>${escapeHtml(e.mode)}</td>
-        <td>${escapeHtml(e.god)}</td>
-        <td class="mono">${escapeHtml(e.id)}</td>`;
-      tbody.appendChild(tr);
+      appendResultRow(tbody, e);
     }
   }
   document.getElementById("count-label").textContent = `${matched.length}건`;
@@ -339,11 +451,14 @@ async function loadData() {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   bundle = await res.json();
   godRank = new Map(bundle.meta.gods.map((g, i) => [g.label, i]));
+  visibleColumnKeys = loadVisibleColumns();
+  buildColumnPicker();
+  buildResultTableHead();
   buildUI(bundle.meta);
   refresh();
 }
 
 loadData().catch((err) => {
-  document.getElementById("result-body").innerHTML = `<tr><td colspan="6" class="empty">데이터 로드 실패: ${escapeHtml(err.message)}<br><br>GitHub Pages로 열거나, web 폴더에서 <code>python -m http.server</code> 후 접속하세요.</td></tr>`;
+  document.getElementById("result-body").innerHTML = `<tr><td colspan="7" class="empty">데이터 로드 실패: ${escapeHtml(err.message)}<br><br>GitHub Pages로 열거나, web 폴더에서 <code>python -m http.server</code> 후 접속하세요.</td></tr>`;
   document.getElementById("count-label").textContent = "오류";
 });

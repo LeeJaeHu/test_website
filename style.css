@@ -67,8 +67,25 @@ body {
 }
 
 .panel h2 {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 1rem;
+}
+
+.results-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.column-picker {
+  margin: 0;
+}
+
+.column-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
 }
 
 fieldset {
@@ -193,16 +210,14 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
-thead th:nth-child(1) { width: 6rem; }
-thead th:nth-child(2) { width: 22%; }
-thead th:nth-child(3) { width: 28%; }
-thead th:nth-child(4) { width: 4.5rem; }
-thead th:nth-child(5) { width: 3.5rem; }
-thead th:nth-child(6) { width: 6rem; }
-thead th:nth-child(7) { width: 14%; }
+td.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+}
 
 thead {
   position: sticky;
@@ -227,12 +242,6 @@ th {
 
 tbody tr:hover {
   background: var(--row-hover);
-}
-
-td.empty {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem;
 }
 
 td.mono {
