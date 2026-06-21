@@ -300,6 +300,24 @@ function rowCellValue(entry, key) {
   return String(v);
 }
 
+function isCommonSheet(sheet) {
+  return String(sheet ?? "").includes("신공통");
+}
+
+function compareBySheetThenWeight(a, b) {
+  const aCommon = isCommonSheet(a.sheet);
+  const bCommon = isCommonSheet(b.sheet);
+  if (aCommon !== bCommon) return aCommon ? -1 : 1;
+
+  const sheetCmp = String(a.sheet ?? "").localeCompare(String(b.sheet ?? ""), "ko");
+  if (sheetCmp !== 0) return sheetCmp;
+
+  const wa = typeof a.weight === "number" ? a.weight : 0;
+  const wb = typeof b.weight === "number" ? b.weight : 0;
+  if (wa !== wb) return wb - wa;
+  return String(a.id).localeCompare(String(b.id));
+}
+
 function buildResultTableHead() {
   const table = document.querySelector(".results table");
   const colgroup = document.getElementById("result-cols");
@@ -317,6 +335,9 @@ function buildResultTableHead() {
     const th = document.createElement("th");
     th.className = "col-header";
     th.dataset.col = col.key;
+    th.style.width = `${width}px`;
+    th.style.minWidth = `${width}px`;
+    th.style.maxWidth = `${width}px`;
     const label = document.createElement("span");
     label.className = "col-label";
     label.textContent = col.label;
@@ -326,14 +347,21 @@ function buildResultTableHead() {
     resizer.title = "드래그하여 열 너비 조절";
     resizer.setAttribute("aria-hidden", "true");
     th.appendChild(resizer);
-    attachColumnResizer(resizer, col.key, colEl);
+    attachColumnResizer(resizer, col.key, colEl, th);
     thead.appendChild(th);
   }
 
-  table.style.width = `${visibleColumns().reduce((sum, c) => sum + getColumnWidth(c.key), 0)}px`;
+  syncTableWidth(table);
 }
 
-function attachColumnResizer(handle, key, colEl) {
+function syncTableWidth(table) {
+  const total = visibleColumns().reduce((sum, c) => sum + getColumnWidth(c.key), 0);
+  const wrap = table.closest(".table-wrap");
+  const minW = wrap ? Math.max(total, wrap.clientWidth) : total;
+  table.style.width = `${minW}px`;
+}
+
+function attachColumnResizer(handle, key, colEl, th) {
   handle.addEventListener("mousedown", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -342,10 +370,13 @@ function attachColumnResizer(handle, key, colEl) {
     const table = document.querySelector(".results table");
 
     const onMove = (ev) => {
-      const next = Math.max(48, Math.min(720, startW + ev.clientX - startX));
+      const next = Math.max(56, Math.min(800, startW + ev.clientX - startX));
       columnWidths[key] = next;
       colEl.style.width = `${next}px`;
-      table.style.width = `${visibleColumns().reduce((sum, c) => sum + getColumnWidth(c.key), 0)}px`;
+      th.style.width = `${next}px`;
+      th.style.minWidth = `${next}px`;
+      th.style.maxWidth = `${next}px`;
+      syncTableWidth(table);
     };
 
     const onUp = () => {
@@ -436,15 +467,11 @@ function refresh() {
   const f = getFilters();
   let matched = bundle.entries.filter((e) => matchEntry(e, f));
   matched = applyDedupe(matched, f.dedupe);
-  matched.sort((a, b) => {
-    const [ra, ga] = godSortKey(a.god);
-    const [rb, gb] = godSortKey(b.god);
-    if (ra !== rb) return ra - rb;
-    const wa = typeof a.weight === "number" ? a.weight : 0;
-    const wb = typeof b.weight === "number" ? b.weight : 0;
-    if (wa !== wb) return wb - wa;
-    return String(a.id).localeCompare(String(b.id));
-  });
+  const commonRows = matched.filter((e) => isCommonSheet(e.sheet));
+  const godRows = matched.filter((e) => !isCommonSheet(e.sheet));
+  commonRows.sort(compareBySheetThenWeight);
+  godRows.sort(compareBySheetThenWeight);
+  matched = [...commonRows, ...godRows];
 
   const tbody = document.getElementById("result-body");
   const colCount = visibleColumns().length;
