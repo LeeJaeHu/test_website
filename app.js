@@ -637,8 +637,10 @@ function buildGodLegend(meta) {
   el.appendChild(note);
 }
 
+const LOOKUP_DATA_V = 2;
+
 async function loadData() {
-  const res = await fetch("data/lookup.json");
+  const res = await fetch(`data/lookup.json?v=${LOOKUP_DATA_V}`, { cache: "no-cache" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   bundle = await res.json();
   godRank = new Map(bundle.meta.gods.map((g, i) => [g.label, i]));
