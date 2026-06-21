@@ -8,7 +8,7 @@
       name="description"
       content="카드 조건(코스트·유형·직업·태그)에 맞는 신 번뜩임을 조회합니다. 비공식 팬 도구, 오프라인 동작."
     />
-    <link rel="stylesheet" href="style.css?v=2" />
+    <link rel="stylesheet" href="style.css?v=4" />
   </head>
   <body>
     <header class="site-header">
@@ -78,6 +78,7 @@
               표시 열
               <button type="button" class="link-btn" id="cols-all">전체</button>
               <button type="button" class="link-btn" id="cols-minimal">요약</button>
+              <button type="button" class="link-btn" id="cols-reset-width">너비 초기화</button>
             </legend>
             <div class="column-picker-row" id="column-picker"></div>
           </fieldset>
@@ -85,6 +86,7 @@
         </div>
         <div class="table-wrap">
           <table>
+            <colgroup id="result-cols"></colgroup>
             <thead>
               <tr></tr>
             </thead>
@@ -113,6 +115,6 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=5" type="module"></script>
+    <script src="app.js?v=7" type="module"></script>
   </body>
 </html>

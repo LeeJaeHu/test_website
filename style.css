@@ -217,7 +217,56 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
-  table-layout: auto;
+  table-layout: fixed;
+}
+
+th.col-header {
+  position: relative;
+  padding: 0;
+}
+
+th.col-header .col-label {
+  display: block;
+  padding: 0.45rem 0.55rem;
+  padding-right: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.col-resizer:hover,
+body.col-resizing .col-resizer {
+  background: var(--accent);
+  opacity: 0.75;
+}
+
+body.col-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+td[data-col="description"],
+td[data-col="conditions"],
+td[data-col="id"] {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-overflow: unset;
 }
 
 td.empty {
@@ -247,67 +296,60 @@ th {
   white-space: nowrap;
 }
 
-tbody tr:hover {
+tbody tr:not([class*="row-god-"]):hover {
   background: var(--row-hover);
 }
 
 tbody tr[class*="row-god-"] {
-  color: #f2f6fc;
+  color: #f5f8fc;
 }
 
 tbody tr[class*="row-god-"] td.mono {
-  color: #e2eaf6;
+  color: #e8eef8;
 }
 
 tbody tr.row-god-nihilum {
-  background: color-mix(in srgb, var(--god-nihilum) 16%, var(--panel));
-  box-shadow: inset 3px 0 0 var(--god-nihilum);
+  background: rgba(110, 176, 255, 0.22);
+  box-shadow: inset 4px 0 0 #6eb0ff;
 }
 tbody tr.row-god-diallos {
-  background: color-mix(in srgb, var(--god-diallos) 16%, var(--panel));
-  box-shadow: inset 3px 0 0 var(--god-diallos);
+  background: rgba(232, 192, 106, 0.22);
+  box-shadow: inset 4px 0 0 #e8c06a;
 }
 tbody tr.row-god-secred {
-  background: color-mix(in srgb, var(--god-secred) 16%, var(--panel));
-  box-shadow: inset 3px 0 0 var(--god-secred);
+  background: rgba(111, 217, 122, 0.22);
+  box-shadow: inset 4px 0 0 #6fd97a;
 }
 tbody tr.row-god-circen {
-  background: color-mix(in srgb, var(--god-circen) 16%, var(--panel));
-  box-shadow: inset 3px 0 0 var(--god-circen);
+  background: rgba(240, 181, 160, 0.24);
+  box-shadow: inset 4px 0 0 #f0b5a0;
 }
 tbody tr.row-god-vitor {
-  background: color-mix(in srgb, var(--god-vitor) 16%, var(--panel));
-  box-shadow: inset 3px 0 0 var(--god-vitor);
+  background: rgba(240, 112, 112, 0.22);
+  box-shadow: inset 4px 0 0 #f07070;
 }
 tbody tr.row-god-caligo {
-  background: color-mix(in srgb, var(--god-caligo) 16%, var(--panel));
-  box-shadow: inset 3px 0 0 var(--god-caligo);
-}
-tbody tr.row-god-multi {
-  background: color-mix(in srgb, var(--god-multi) 12%, var(--panel));
-  box-shadow: inset 3px 0 0 var(--god-multi);
+  background: rgba(179, 156, 255, 0.22);
+  box-shadow: inset 4px 0 0 #b39cff;
 }
 
 tbody tr.row-god-nihilum:hover {
-  background: color-mix(in srgb, var(--god-nihilum) 24%, var(--panel));
+  background: rgba(110, 176, 255, 0.34);
 }
 tbody tr.row-god-diallos:hover {
-  background: color-mix(in srgb, var(--god-diallos) 24%, var(--panel));
+  background: rgba(232, 192, 106, 0.34);
 }
 tbody tr.row-god-secred:hover {
-  background: color-mix(in srgb, var(--god-secred) 24%, var(--panel));
+  background: rgba(111, 217, 122, 0.34);
 }
 tbody tr.row-god-circen:hover {
-  background: color-mix(in srgb, var(--god-circen) 24%, var(--panel));
+  background: rgba(240, 181, 160, 0.36);
 }
 tbody tr.row-god-vitor:hover {
-  background: color-mix(in srgb, var(--god-vitor) 24%, var(--panel));
+  background: rgba(240, 112, 112, 0.34);
 }
 tbody tr.row-god-caligo:hover {
-  background: color-mix(in srgb, var(--god-caligo) 24%, var(--panel));
-}
-tbody tr.row-god-multi:hover {
-  background: color-mix(in srgb, var(--god-multi) 20%, var(--panel));
+  background: rgba(179, 156, 255, 0.34);
 }
 
 .god-legend {
@@ -339,7 +381,11 @@ tbody tr.row-god-multi:hover {
 .god-legend i.god-circen { background: var(--god-circen); }
 .god-legend i.god-vitor { background: var(--god-vitor); }
 .god-legend i.god-caligo { background: var(--god-caligo); }
-.god-legend i.god-multi { background: var(--god-multi); }
+
+.god-legend-note {
+  color: var(--muted);
+  font-style: italic;
+}
 
 td.mono {
   font-family: ui-monospace, Consolas, monospace;

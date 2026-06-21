@@ -16,19 +16,33 @@ const TAG_STATE_HELP =
   "소멸(exhaust): 카드 extra_tag와 TALENT_EXHAUST(소멸)를 동일하게 처리합니다.";
 
 const RESULT_COLUMNS = [
-  { key: "sheet", label: "시트", mono: false, width: "6rem" },
-  { key: "description", label: "설명", mono: false, width: "22%" },
-  { key: "conditions", label: "조건", mono: false, width: "28%" },
-  { key: "weight", label: "가중치", mono: false, width: "4.5rem" },
-  { key: "mode", label: "모드", mono: false, width: "3.5rem" },
-  { key: "god", label: "신", mono: false, width: "6rem" },
-  { key: "id", label: "ID", mono: true, width: "14%" },
+  { key: "sheet", label: "시트", mono: false },
+  { key: "description", label: "설명", mono: false },
+  { key: "conditions", label: "조건", mono: false },
+  { key: "weight", label: "가중치", mono: false },
+  { key: "mode", label: "모드", mono: false },
+  { key: "god", label: "신", mono: false },
+  { key: "id", label: "ID", mono: true },
 ];
 
+const COLUMN_DEFAULT_WIDTH_PX = {
+  sheet: 96,
+  description: 240,
+  conditions: 300,
+  weight: 72,
+  mode: 64,
+  god: 100,
+  id: 180,
+};
+
 const VISIBLE_COLS_KEY = "spark-lookup-visible-cols";
+const COLUMN_WIDTHS_KEY = "spark-lookup-col-widths";
 
 /** @type {Set<string>} */
 let visibleColumnKeys = new Set();
+
+/** @type {Record<string, number>} */
+let columnWidths = {};
 
 /** @type {{ meta: object, entries: object[] } | null} */
 let bundle = null;
@@ -39,18 +53,44 @@ let godRank = new Map();
 /** @type {Map<string, string>} */
 let godLabelToCode = new Map();
 
-function rowGodClass(entry) {
-  const godNames = String(entry.god ?? "")
+function sortGodCodes(codes) {
+  const order = bundle?.meta?.god_order ?? [];
+  return [...new Set(codes)].sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+}
+
+function resolveGodCodes(entry) {
+  if (Array.isArray(entry.god_codes) && entry.god_codes.length) {
+    return sortGodCodes(entry.god_codes);
+  }
+  if (entry.god_code) return [entry.god_code];
+  const names = String(entry.god ?? "")
     .split("·")
     .map((s) => s.trim())
     .filter(Boolean);
-  if (godNames.length > 1) return "row-god-multi";
-  if (entry.god_code) return `row-god-${String(entry.god_code).toLowerCase()}`;
-  if (godNames.length === 1) {
-    const code = godLabelToCode.get(godNames[0]);
-    if (code) return `row-god-${code.toLowerCase()}`;
-  }
-  return "";
+  return sortGodCodes(names.map((n) => godLabelToCode.get(n)).filter(Boolean));
+}
+
+
+function isGodCommonEntry(entry) {
+  if (String(entry.sheet ?? "").includes("신공통")) return true;
+  return resolveGodCodes(entry).length > 1;
+}
+
+function applyRowGodStyle(tr, entry) {
+  tr.className = "";
+  tr.style.removeProperty("background");
+  tr.style.removeProperty("box-shadow");
+
+  if (isGodCommonEntry(entry)) return;
+
+  const codes = resolveGodCodes(entry);
+  if (codes.length !== 1) return;
+
+  tr.className = `row-god-${codes[0].toLowerCase()}`;
 }
 
 function sparkMatchesCost(min, max, cardCost) {
@@ -83,11 +123,15 @@ function mergeGodClones(members) {
   const weight =
     uniqW.size === 1 ? weights[0] : `${Math.min(...weights)}~${Math.max(...weights)}`;
   const first = members[0];
+  const god_codes = sortGodCodes(
+    members.map((e) => e.god_code).filter(Boolean)
+  );
   return {
     id: ids.join(", "),
     sheet: `${first.mode}-신공통`,
     mode: first.mode,
     god: gods.join(" · "),
+    god_codes,
     description: first.description,
     conditions: first.conditions ?? "",
     weight,
@@ -108,6 +152,7 @@ function mergeSameGodVariants(members) {
     sheet: first.sheet,
     mode: first.mode,
     god: first.god,
+    god_code: first.god_code,
     description,
     conditions: first.conditions ?? "",
     weight,
@@ -217,6 +262,34 @@ function saveVisibleColumns() {
   localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify([...visibleColumnKeys]));
 }
 
+function loadColumnWidths() {
+  try {
+    const raw = localStorage.getItem(COLUMN_WIDTHS_KEY);
+    if (!raw) return {};
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== "object") return {};
+    /** @type {Record<string, number>} */
+    const out = {};
+    for (const [key, val] of Object.entries(data)) {
+      const n = Number(val);
+      if (RESULT_COLUMNS.some((c) => c.key === key) && Number.isFinite(n) && n >= 48) {
+        out[key] = Math.round(n);
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function saveColumnWidths() {
+  localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));
+}
+
+function getColumnWidth(key) {
+  return columnWidths[key] ?? COLUMN_DEFAULT_WIDTH_PX[key] ?? 120;
+}
+
 function visibleColumns() {
   return RESULT_COLUMNS.filter((c) => visibleColumnKeys.has(c.key));
 }
@@ -228,21 +301,69 @@ function rowCellValue(entry, key) {
 }
 
 function buildResultTableHead() {
+  const table = document.querySelector(".results table");
+  const colgroup = document.getElementById("result-cols");
   const thead = document.querySelector(".results table thead tr");
+  colgroup.replaceChildren();
   thead.replaceChildren();
+
   for (const col of visibleColumns()) {
+    const width = getColumnWidth(col.key);
+    const colEl = document.createElement("col");
+    colEl.dataset.col = col.key;
+    colEl.style.width = `${width}px`;
+    colgroup.appendChild(colEl);
+
     const th = document.createElement("th");
-    th.textContent = col.label;
+    th.className = "col-header";
     th.dataset.col = col.key;
-    th.style.width = col.width;
+    const label = document.createElement("span");
+    label.className = "col-label";
+    label.textContent = col.label;
+    th.appendChild(label);
+    const resizer = document.createElement("span");
+    resizer.className = "col-resizer";
+    resizer.title = "드래그하여 열 너비 조절";
+    resizer.setAttribute("aria-hidden", "true");
+    th.appendChild(resizer);
+    attachColumnResizer(resizer, col.key, colEl);
     thead.appendChild(th);
   }
+
+  table.style.width = `${visibleColumns().reduce((sum, c) => sum + getColumnWidth(c.key), 0)}px`;
+}
+
+function attachColumnResizer(handle, key, colEl) {
+  handle.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = getColumnWidth(key);
+    const table = document.querySelector(".results table");
+
+    const onMove = (ev) => {
+      const next = Math.max(48, Math.min(720, startW + ev.clientX - startX));
+      columnWidths[key] = next;
+      colEl.style.width = `${next}px`;
+      table.style.width = `${visibleColumns().reduce((sum, c) => sum + getColumnWidth(c.key), 0)}px`;
+    };
+
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.classList.remove("col-resizing");
+      saveColumnWidths();
+    };
+
+    document.body.classList.add("col-resizing");
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
 }
 
 function appendResultRow(tbody, entry) {
   const tr = document.createElement("tr");
-  const godClass = rowGodClass(entry);
-  if (godClass) tr.className = godClass;
+  applyRowGodStyle(tr, entry);
   for (const col of visibleColumns()) {
     const td = document.createElement("td");
     if (col.mono) td.className = "mono";
@@ -298,6 +419,13 @@ function buildColumnPicker() {
       const key = el.getAttribute("data-col-key");
       /** @type {HTMLInputElement} */ (el).checked = key ? visibleColumnKeys.has(key) : false;
     });
+    buildResultTableHead();
+    refresh();
+  });
+
+  document.getElementById("cols-reset-width").addEventListener("click", () => {
+    columnWidths = {};
+    saveColumnWidths();
     buildResultTableHead();
     refresh();
   });
@@ -476,12 +604,10 @@ function buildGodLegend(meta) {
     span.appendChild(document.createTextNode(g.label));
     el.appendChild(span);
   }
-  const multi = document.createElement("span");
-  const multiSwatch = document.createElement("i");
-  multiSwatch.className = "god-multi";
-  multi.appendChild(multiSwatch);
-  multi.appendChild(document.createTextNode("신 공통(묶음)"));
-  el.appendChild(multi);
+  const note = document.createElement("span");
+  note.className = "god-legend-note";
+  note.textContent = "신 공통(묶음) = 배경색 없음";
+  el.appendChild(note);
 }
 
 async function loadData() {
@@ -491,6 +617,7 @@ async function loadData() {
   godRank = new Map(bundle.meta.gods.map((g, i) => [g.label, i]));
   godLabelToCode = new Map(bundle.meta.gods.map((g) => [g.label, g.code]));
   visibleColumnKeys = loadVisibleColumns();
+  columnWidths = loadColumnWidths();
   buildColumnPicker();
   buildGodLegend(bundle.meta);
   buildResultTableHead();
