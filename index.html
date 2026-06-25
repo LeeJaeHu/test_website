@@ -102,12 +102,23 @@
       </section>
 
       <aside class="panel side-panel" aria-label="최근 검색 및 비교">
-        <h2>최근 검색</h2>
-        <p class="hint">항목의 <strong>A</strong>·<strong>B</strong>를 눌러 두 카드를 고르면, 겹치지 않는 번뜩임을 비교합니다.</p>
+        <h2>카드 비교</h2>
+        <p class="hint">① 카드 조건 설정 → <strong>현재 조건 담기</strong> · ② 담기 목록에서 선택 → <strong>비교 목록에 추가</strong> · ③ 비교 목록에서 2개 선택 → <strong>비교하기</strong></p>
+
+        <h3 class="side-subtitle">담기</h3>
+        <div class="history-toolbar">
+          <button type="button" class="secondary-btn" id="stage-current">현재 조건 담기</button>
+          <button type="button" class="secondary-btn" id="clear-staging">담기 비우기</button>
+        </div>
+        <div id="staging-list" class="history-list staging-list"></div>
+        <button type="button" class="primary-btn" id="commit-staging" disabled>선택 항목 비교 목록에 추가</button>
+
+        <h3 class="side-subtitle">비교 목록</h3>
         <div id="history-list" class="history-list"></div>
         <div class="history-toolbar">
+          <button type="button" class="primary-btn" id="run-compare" disabled>비교하기 (0/2)</button>
           <button type="button" class="secondary-btn" id="clear-compare">비교 해제</button>
-          <button type="button" class="secondary-btn" id="clear-history">기록 지우기</button>
+          <button type="button" class="secondary-btn" id="clear-history">목록 지우기</button>
         </div>
 
         <div id="compare-panel" class="compare-panel" hidden>
@@ -146,6 +157,6 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=12" type="module"></script>
+    <script src="app.js?v=13" type="module"></script>
   </body>
 </html>

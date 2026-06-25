@@ -452,7 +452,52 @@ dialog::backdrop {
   background: rgba(0, 0, 0, 0.55);
 }
 
-.side-panel h3 {
+.side-panel h3.side-subtitle {
+  margin: 0.85rem 0 0.4rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.primary-btn {
+  display: block;
+  width: 100%;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  background: var(--accent-dim);
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.primary-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.staging-list {
+  max-height: 22vh;
+}
+
+.staging-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  flex: 1;
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.staging-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.compare-panel h3 {
   margin: 1rem 0 0.5rem;
   font-size: 0.92rem;
 }

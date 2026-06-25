@@ -48,14 +48,26 @@ let visibleColumnKeys = new Set();
 /** @type {Record<string, number>} */
 let columnWidths = {};
 
-/** @type {{ id: string, label: string, filters: object, entries: object[], keys: string[], count: number, savedAt: string }[]} */
+/** @type {{ id: string, label: string, filters: object, entries: object[], keys: string[], count: number, savedAt: string, sig: string }[]} */
 let searchHistory = [];
+
+/** @type {{ id: string, sig: string, label: string, filters: object, entries: object[], keys: string[], count: number, selected: boolean }[]} */
+let compareStaging = [];
+
+/** @type {Set<string>} */
+let historyComparePick = new Set();
 
 /** @type {string|null} */
 let compareAId = null;
 
 /** @type {string|null} */
 let compareBId = null;
+
+/** @type {object|null} */
+let lastFilters = null;
+
+/** @type {object[]} */
+let lastMatched = [];
 
 /** @type {{ meta: object, entries: object[] } | null} */
 let bundle = null;
@@ -329,13 +341,11 @@ function saveSearchHistoryStore() {
   localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(searchHistory));
 }
 
-function pushSearchHistory(filters, matched) {
-  if (!matched.length) return;
+function createHistoryItem(filters, matched) {
   const sig = filtersSignature(filters);
   const keys = matched.map((e) => entryCompareKey(e, filters.dedupe));
-  const existing = searchHistory.findIndex((h) => h.sig === sig);
-  const item = {
-    id: existing >= 0 ? searchHistory[existing].id : `h-${Date.now()}`,
+  return {
+    id: `h-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     sig,
     label: filtersSummary(filters),
     filters: { ...filters, gods: [...filters.gods] },
@@ -344,6 +354,10 @@ function pushSearchHistory(filters, matched) {
     count: matched.length,
     savedAt: new Date().toISOString(),
   };
+}
+
+function appendToHistory(item) {
+  const existing = searchHistory.findIndex((h) => h.sig === item.sig);
   if (existing >= 0) searchHistory.splice(existing, 1);
   searchHistory.unshift(item);
   if (searchHistory.length > MAX_SEARCH_HISTORY) {
@@ -351,7 +365,152 @@ function pushSearchHistory(filters, matched) {
   }
   if (compareAId && !searchHistory.some((h) => h.id === compareAId)) compareAId = null;
   if (compareBId && !searchHistory.some((h) => h.id === compareBId)) compareBId = null;
+  historyComparePick.forEach((id) => {
+    if (!searchHistory.some((h) => h.id === id)) historyComparePick.delete(id);
+  });
   saveSearchHistoryStore();
+}
+
+function addCurrentToStaging() {
+  if (!lastFilters || !lastMatched.length) {
+    window.alert("조건에 맞는 번뜩임이 없습니다. 먼저 카드 조건을 설정하세요.");
+    return;
+  }
+  const sig = filtersSignature(lastFilters);
+  if (compareStaging.some((s) => s.sig === sig)) {
+    window.alert("이미 담기 목록에 있는 조건입니다.");
+    return;
+  }
+  const item = createHistoryItem(lastFilters, lastMatched);
+  compareStaging.push({
+    id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    sig: item.sig,
+    label: item.label,
+    filters: item.filters,
+    entries: item.entries,
+    keys: item.keys,
+    count: item.count,
+    selected: true,
+  });
+  renderStagingPanel();
+}
+
+function commitStagingToHistory() {
+  const picked = compareStaging.filter((s) => s.selected);
+  if (!picked.length) {
+    window.alert("비교 목록에 추가할 항목을 선택하세요.");
+    return;
+  }
+  for (const s of picked) {
+    appendToHistory(createHistoryItem(s.filters, s.entries));
+  }
+  compareStaging = compareStaging.filter((s) => !s.selected);
+  renderStagingPanel();
+  renderHistoryPanel();
+}
+
+function clearStaging() {
+  compareStaging = [];
+  renderStagingPanel();
+}
+
+function toggleStagingPick(id, checked) {
+  const item = compareStaging.find((s) => s.id === id);
+  if (item) item.selected = checked;
+}
+
+function toggleHistoryComparePick(id, checked) {
+  if (checked) {
+    if (historyComparePick.size >= 2) {
+      const first = [...historyComparePick][0];
+      historyComparePick.delete(first);
+    }
+    historyComparePick.add(id);
+  } else {
+    historyComparePick.delete(id);
+  }
+  renderHistoryPanel();
+  updateCompareRunButton();
+}
+
+function runCompareFromSelection() {
+  if (historyComparePick.size !== 2) return;
+  const [a, b] = [...historyComparePick];
+  compareAId = a;
+  compareBId = b;
+  renderHistoryPanel();
+  renderComparePanel();
+}
+
+function updateCompareRunButton() {
+  const btn = document.getElementById("run-compare");
+  if (!btn) return;
+  const n = historyComparePick.size;
+  btn.disabled = n !== 2;
+  btn.textContent = n === 2 ? "비교하기" : `비교하기 (${n}/2)`;
+}
+
+function removeHistoryItem(id) {
+  searchHistory = searchHistory.filter((h) => h.id !== id);
+  historyComparePick.delete(id);
+  if (compareAId === id) compareAId = null;
+  if (compareBId === id) compareBId = null;
+  saveSearchHistoryStore();
+  renderHistoryPanel();
+  renderComparePanel();
+  updateCompareRunButton();
+}
+
+function removeStagingItem(id) {
+  compareStaging = compareStaging.filter((s) => s.id !== id);
+  renderStagingPanel();
+}
+
+function renderStagingPanel() {
+  const list = document.getElementById("staging-list");
+  const addBtn = document.getElementById("stage-current");
+  const commitBtn = document.getElementById("commit-staging");
+  if (!list) return;
+
+  if (addBtn) {
+    addBtn.disabled = !lastMatched.length;
+  }
+  if (commitBtn) {
+    const n = compareStaging.filter((s) => s.selected).length;
+    commitBtn.disabled = n === 0;
+    commitBtn.textContent = n ? `선택 항목 비교 목록에 추가 (${n})` : "선택 항목 비교 목록에 추가";
+  }
+
+  list.replaceChildren();
+  if (!compareStaging.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint history-empty";
+    empty.textContent = "담기 목록이 비어 있습니다.";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const item of compareStaging) {
+    const row = document.createElement("div");
+    row.className = "history-item staging-item";
+
+    const label = document.createElement("label");
+    label.className = "staging-check";
+    label.innerHTML = `<input type="checkbox" ${item.selected ? "checked" : ""} /> <strong>${escapeHtml(item.label)}</strong> <span class="history-count">${item.count}건</span>`;
+    label.querySelector("input").addEventListener("change", (ev) => {
+      toggleStagingPick(item.id, /** @type {HTMLInputElement} */ (ev.target).checked);
+      renderStagingPanel();
+    });
+
+    const btnRemove = document.createElement("button");
+    btnRemove.type = "button";
+    btnRemove.className = "link-btn";
+    btnRemove.textContent = "삭제";
+    btnRemove.addEventListener("click", () => removeStagingItem(item.id));
+
+    row.append(label, btnRemove);
+    list.appendChild(row);
+  }
 }
 
 function applyFilters(filters) {
@@ -386,18 +545,6 @@ function applyFilters(filters) {
   if (dedupeEl) dedupeEl.checked = !!filters.dedupe;
 }
 
-function setCompareSlot(slot, historyId) {
-  if (slot === "A") {
-    compareAId = compareAId === historyId ? null : historyId;
-    if (compareBId === compareAId) compareBId = null;
-  } else {
-    compareBId = compareBId === historyId ? null : historyId;
-    if (compareAId === compareBId) compareAId = null;
-  }
-  renderHistoryPanel();
-  renderComparePanel();
-}
-
 function renderHistoryPanel() {
   const list = document.getElementById("history-list");
   if (!list) return;
@@ -406,36 +553,30 @@ function renderHistoryPanel() {
   if (!searchHistory.length) {
     const empty = document.createElement("p");
     empty.className = "hint history-empty";
-    empty.textContent = "조건을 바꿔 검색하면 여기에 쌓입니다.";
+    empty.textContent = "담기 → 선택 → 비교 목록에 추가하세요.";
     list.appendChild(empty);
+    updateCompareRunButton();
     return;
   }
 
   for (const item of searchHistory) {
     const row = document.createElement("div");
     row.className = "history-item";
-    if (item.id === compareAId || item.id === compareBId) row.classList.add("history-item-active");
+    const isPicked = historyComparePick.has(item.id);
+    const isActive = item.id === compareAId || item.id === compareBId;
+    if (isPicked || isActive) row.classList.add("history-item-active");
 
-    const meta = document.createElement("div");
-    meta.className = "history-meta";
-    meta.innerHTML = `<strong>${escapeHtml(item.label)}</strong><span class="history-count">${item.count}건</span>`;
+    const label = document.createElement("label");
+    label.className = "staging-check";
+    const slot =
+      item.id === compareAId ? "A" : item.id === compareBId ? "B" : isPicked ? "·" : "";
+    label.innerHTML = `<input type="checkbox" ${isPicked ? "checked" : ""} /> <strong>${escapeHtml(item.label)}</strong> <span class="history-count">${item.count}건${slot ? ` · ${slot}` : ""}</span>`;
+    label.querySelector("input").addEventListener("change", (ev) => {
+      toggleHistoryComparePick(item.id, /** @type {HTMLInputElement} */ (ev.target).checked);
+    });
 
     const actions = document.createElement("div");
     actions.className = "history-actions";
-
-    const btnA = document.createElement("button");
-    btnA.type = "button";
-    btnA.className = `history-slot-btn${item.id === compareAId ? " active" : ""}`;
-    btnA.textContent = "A";
-    btnA.title = "비교 카드 A";
-    btnA.addEventListener("click", () => setCompareSlot("A", item.id));
-
-    const btnB = document.createElement("button");
-    btnB.type = "button";
-    btnB.className = `history-slot-btn${item.id === compareBId ? " active" : ""}`;
-    btnB.textContent = "B";
-    btnB.title = "비교 카드 B";
-    btnB.addEventListener("click", () => setCompareSlot("B", item.id));
 
     const btnLoad = document.createElement("button");
     btnLoad.type = "button";
@@ -443,13 +584,20 @@ function renderHistoryPanel() {
     btnLoad.textContent = "불러오기";
     btnLoad.addEventListener("click", () => {
       applyFilters(item.filters);
-      refresh({ skipHistory: true });
+      refresh();
     });
 
-    actions.append(btnA, btnB, btnLoad);
-    row.append(meta, actions);
+    const btnRemove = document.createElement("button");
+    btnRemove.type = "button";
+    btnRemove.className = "link-btn";
+    btnRemove.textContent = "삭제";
+    btnRemove.addEventListener("click", () => removeHistoryItem(item.id));
+
+    actions.append(btnLoad, btnRemove);
+    row.append(label, actions);
     list.appendChild(row);
   }
+  updateCompareRunButton();
 }
 
 function renderCompareList(containerId, entries, emptyText) {
@@ -771,10 +919,12 @@ function buildColumnPicker() {
   });
 }
 
-function refresh(options = {}) {
+function refresh() {
   if (!bundle) return;
   const f = getFilters();
   const matched = computeMatched(f);
+  lastFilters = f;
+  lastMatched = matched;
 
   const tbody = document.getElementById("result-body");
   const colCount = visibleColumns().length;
@@ -793,12 +943,7 @@ function refresh(options = {}) {
     }
   }
   document.getElementById("count-label").textContent = `${matched.length}건`;
-
-  if (!options.skipHistory) {
-    pushSearchHistory(f, matched);
-    renderHistoryPanel();
-    renderComparePanel();
-  }
+  renderStagingPanel();
 }
 
 function escapeHtml(s) {
@@ -932,17 +1077,26 @@ function buildUI(meta) {
     searchHistory = [];
     compareAId = null;
     compareBId = null;
+    historyComparePick.clear();
     saveSearchHistoryStore();
     renderHistoryPanel();
     renderComparePanel();
+    updateCompareRunButton();
   });
 
   document.getElementById("clear-compare").addEventListener("click", () => {
     compareAId = null;
     compareBId = null;
+    historyComparePick.clear();
     renderHistoryPanel();
     renderComparePanel();
+    updateCompareRunButton();
   });
+
+  document.getElementById("stage-current").addEventListener("click", addCurrentToStaging);
+  document.getElementById("commit-staging").addEventListener("click", commitStagingToHistory);
+  document.getElementById("clear-staging").addEventListener("click", clearStaging);
+  document.getElementById("run-compare").addEventListener("click", runCompareFromSelection);
 }
 
 function buildGodLegend(meta) {
@@ -977,9 +1131,11 @@ async function loadData() {
   buildResultTableHead();
   buildUI(bundle.meta);
   searchHistory = loadSearchHistory();
+  renderStagingPanel();
   renderHistoryPanel();
   renderComparePanel();
-  refresh({ skipHistory: true });
+  updateCompareRunButton();
+  refresh();
 }
 
 loadData().catch((err) => {
