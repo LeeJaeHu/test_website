@@ -37,12 +37,23 @@ const COLUMN_DEFAULT_WIDTH_PX = {
 
 const VISIBLE_COLS_KEY = "spark-lookup-visible-cols";
 const COLUMN_WIDTHS_KEY = "spark-lookup-col-widths";
+const SEARCH_HISTORY_KEY = "spark-lookup-search-history";
+const MAX_SEARCH_HISTORY = 12;
 
 /** @type {Set<string>} */
 let visibleColumnKeys = new Set();
 
 /** @type {Record<string, number>} */
 let columnWidths = {};
+
+/** @type {{ id: string, label: string, filters: object, entries: object[], keys: string[], count: number, savedAt: string }[]} */
+let searchHistory = [];
+
+/** @type {string|null} */
+let compareAId = null;
+
+/** @type {string|null} */
+let compareBId = null;
 
 /** @type {{ meta: object, entries: object[] } | null} */
 let bundle = null;
@@ -185,9 +196,12 @@ function applyDedupe(matched, dedupe) {
 function getFilters() {
   const cost = Number(document.querySelector('input[name="cost"]:checked')?.value ?? "2");
   const typeCode = document.querySelector('input[name="type"]:checked')?.dataset.code ?? "";
+  const typeLabel = document.querySelector('input[name="type"]:checked')?.value ?? "스킬";
   const mode = document.querySelector('input[name="mode"]:checked')?.value ?? "기본";
   const classCode =
     document.querySelector('input[name="class"]:checked')?.dataset.code ?? "";
+  const classLabel =
+    document.querySelector('input[name="class"]:checked')?.value ?? "전체";
   const dedupe = /** @type {HTMLInputElement} */ (document.getElementById("dedupe")).checked;
 
   /** @type {Set<string>} */
@@ -205,7 +219,278 @@ function getFilters() {
     }
   }
 
-  return { cost, typeCode, mode, classCode, gods, tagStates, dedupe };
+  return {
+    cost,
+    typeCode,
+    typeLabel,
+    mode,
+    classCode,
+    classLabel,
+    gods: [...gods].sort(),
+    tagStates,
+    dedupe,
+  };
+}
+
+function filtersSignature(f) {
+  return JSON.stringify({
+    cost: f.cost,
+    typeCode: f.typeCode,
+    mode: f.mode,
+    classCode: f.classCode,
+    gods: f.gods,
+    tagStates: f.tagStates,
+    dedupe: f.dedupe,
+  });
+}
+
+function filtersSummary(f) {
+  const parts = [`${f.cost}코`, f.typeLabel.replace(/\s*\([^)]*\)/, ""), f.mode];
+  if (f.classCode) parts.push(f.classLabel);
+  const tagNotes = Object.entries(f.tagStates)
+    .filter(([, v]) => v !== "무관")
+    .map(([k, v]) => `${k}:${v}`);
+  if (tagNotes.length) parts.push(tagNotes.join(","));
+  if (f.gods.length && bundle && f.gods.length < bundle.meta.god_order.length) {
+    const labels = f.gods
+      .map((c) => bundle.meta.gods.find((g) => g.code === c)?.label ?? c)
+      .join("·");
+    parts.push(labels);
+  }
+  return parts.join(" · ");
+}
+
+function entryCompareKey(entry, dedupe) {
+  if (dedupe) return `${effectKeyStr(entry)}\0${entry.mode}`;
+  return String(entry.id);
+}
+
+function computeMatched(filters) {
+  if (!bundle) return [];
+  let matched = bundle.entries.filter((e) => matchEntry(e, filters));
+  matched = applyDedupe(matched, filters.dedupe);
+  const commonRows = matched.filter((e) => isCommonSheet(e.sheet));
+  const godRows = matched.filter((e) => !isCommonSheet(e.sheet));
+  commonRows.sort(compareBySheetThenWeight);
+  godRows.sort(compareBySheetThenWeight);
+  return [...commonRows, ...godRows];
+}
+
+function slimEntryForHistory(entry) {
+  return {
+    id: entry.id,
+    sheet: entry.sheet,
+    mode: entry.mode,
+    god: entry.god,
+    god_code: entry.god_code,
+    god_codes: entry.god_codes,
+    description: entry.description,
+    conditions: entry.conditions ?? "",
+    weight: entry.weight,
+    effect_key: entry.effect_key,
+  };
+}
+
+function loadSearchHistory() {
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSearchHistoryStore() {
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(searchHistory));
+}
+
+function pushSearchHistory(filters, matched) {
+  if (!matched.length) return;
+  const sig = filtersSignature(filters);
+  const keys = matched.map((e) => entryCompareKey(e, filters.dedupe));
+  const existing = searchHistory.findIndex((h) => h.sig === sig);
+  const item = {
+    id: existing >= 0 ? searchHistory[existing].id : `h-${Date.now()}`,
+    sig,
+    label: filtersSummary(filters),
+    filters: { ...filters, gods: [...filters.gods] },
+    entries: matched.map(slimEntryForHistory),
+    keys,
+    count: matched.length,
+    savedAt: new Date().toISOString(),
+  };
+  if (existing >= 0) searchHistory.splice(existing, 1);
+  searchHistory.unshift(item);
+  if (searchHistory.length > MAX_SEARCH_HISTORY) {
+    searchHistory = searchHistory.slice(0, MAX_SEARCH_HISTORY);
+  }
+  if (compareAId && !searchHistory.some((h) => h.id === compareAId)) compareAId = null;
+  if (compareBId && !searchHistory.some((h) => h.id === compareBId)) compareBId = null;
+  saveSearchHistoryStore();
+}
+
+function applyFilters(filters) {
+  const costEl = document.querySelector(`input[name="cost"][value="${filters.cost}"]`);
+  if (costEl) /** @type {HTMLInputElement} */ (costEl).checked = true;
+
+  for (const el of document.querySelectorAll('input[name="type"]')) {
+    const input = /** @type {HTMLInputElement} */ (el);
+    input.checked = input.dataset.code === (filters.typeCode ?? "");
+  }
+
+  const modeEl = document.querySelector(`input[name="mode"][value="${filters.mode}"]`);
+  if (modeEl) /** @type {HTMLInputElement} */ (modeEl).checked = true;
+
+  for (const el of document.querySelectorAll('input[name="class"]')) {
+    const input = /** @type {HTMLInputElement} */ (el);
+    input.checked = input.dataset.code === (filters.classCode ?? "");
+  }
+
+  const godSet = new Set(filters.gods ?? []);
+  for (const el of document.querySelectorAll('input[name="god"]')) {
+    const input = /** @type {HTMLInputElement} */ (el);
+    input.checked = godSet.has(input.value);
+  }
+
+  for (const [code, state] of Object.entries(filters.tagStates ?? {})) {
+    const el = document.querySelector(`input[name="tag-${code}"][value="${state}"]`);
+    if (el) /** @type {HTMLInputElement} */ (el).checked = true;
+  }
+
+  const dedupeEl = /** @type {HTMLInputElement} */ (document.getElementById("dedupe"));
+  if (dedupeEl) dedupeEl.checked = !!filters.dedupe;
+}
+
+function setCompareSlot(slot, historyId) {
+  if (slot === "A") {
+    compareAId = compareAId === historyId ? null : historyId;
+    if (compareBId === compareAId) compareBId = null;
+  } else {
+    compareBId = compareBId === historyId ? null : historyId;
+    if (compareAId === compareBId) compareAId = null;
+  }
+  renderHistoryPanel();
+  renderComparePanel();
+}
+
+function renderHistoryPanel() {
+  const list = document.getElementById("history-list");
+  if (!list) return;
+  list.replaceChildren();
+
+  if (!searchHistory.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint history-empty";
+    empty.textContent = "조건을 바꿔 검색하면 여기에 쌓입니다.";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const item of searchHistory) {
+    const row = document.createElement("div");
+    row.className = "history-item";
+    if (item.id === compareAId || item.id === compareBId) row.classList.add("history-item-active");
+
+    const meta = document.createElement("div");
+    meta.className = "history-meta";
+    meta.innerHTML = `<strong>${escapeHtml(item.label)}</strong><span class="history-count">${item.count}건</span>`;
+
+    const actions = document.createElement("div");
+    actions.className = "history-actions";
+
+    const btnA = document.createElement("button");
+    btnA.type = "button";
+    btnA.className = `history-slot-btn${item.id === compareAId ? " active" : ""}`;
+    btnA.textContent = "A";
+    btnA.title = "비교 카드 A";
+    btnA.addEventListener("click", () => setCompareSlot("A", item.id));
+
+    const btnB = document.createElement("button");
+    btnB.type = "button";
+    btnB.className = `history-slot-btn${item.id === compareBId ? " active" : ""}`;
+    btnB.textContent = "B";
+    btnB.title = "비교 카드 B";
+    btnB.addEventListener("click", () => setCompareSlot("B", item.id));
+
+    const btnLoad = document.createElement("button");
+    btnLoad.type = "button";
+    btnLoad.className = "link-btn history-load-btn";
+    btnLoad.textContent = "불러오기";
+    btnLoad.addEventListener("click", () => {
+      applyFilters(item.filters);
+      refresh({ skipHistory: true });
+    });
+
+    actions.append(btnA, btnB, btnLoad);
+    row.append(meta, actions);
+    list.appendChild(row);
+  }
+}
+
+function renderCompareList(containerId, entries, emptyText) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.replaceChildren();
+  if (!entries.length) {
+    const p = document.createElement("p");
+    p.className = "hint compare-empty";
+    p.textContent = emptyText;
+    el.appendChild(p);
+    return;
+  }
+  const ul = document.createElement("ul");
+  ul.className = "compare-list";
+  for (const e of entries) {
+    const li = document.createElement("li");
+    li.className = "compare-list-item";
+    const godClass = isGodCommonEntry(e) ? "" : rowGodClassName(e);
+    if (godClass) li.classList.add(godClass);
+    li.innerHTML = `<span class="compare-desc">${escapeHtml(e.description)}</span><span class="compare-sub">${escapeHtml(e.sheet)} · w${escapeHtml(String(e.weight))}</span>`;
+    ul.appendChild(li);
+  }
+  el.appendChild(ul);
+}
+
+function rowGodClassName(entry) {
+  const codes = resolveGodCodes(entry);
+  if (codes.length === 1) return `row-god-${codes[0].toLowerCase()}`;
+  return "";
+}
+
+function renderComparePanel() {
+  const panel = document.getElementById("compare-panel");
+  if (!panel) return;
+
+  const itemA = searchHistory.find((h) => h.id === compareAId);
+  const itemB = searchHistory.find((h) => h.id === compareBId);
+
+  if (!itemA || !itemB) {
+    panel.hidden = true;
+    return;
+  }
+
+  panel.hidden = false;
+  document.getElementById("compare-a-label").textContent = `A: ${itemA.label} (${itemA.count}건)`;
+  document.getElementById("compare-b-label").textContent = `B: ${itemB.label} (${itemB.count}건)`;
+
+  const setA = new Set(itemA.keys);
+  const setB = new Set(itemB.keys);
+  const onlyA = itemA.entries.filter((_, i) => !setB.has(itemA.keys[i]));
+  const onlyB = itemB.entries.filter((_, i) => !setA.has(itemB.keys[i]));
+  const common = itemA.entries.filter((_, i) => setB.has(itemA.keys[i]));
+
+  document.getElementById("diff-only-a-count").textContent = `${onlyA.length}건`;
+  document.getElementById("diff-only-b-count").textContent = `${onlyB.length}건`;
+  document.getElementById("diff-common-count").textContent = `${common.length}건`;
+
+  onlyA.sort(compareBySheetThenWeight);
+  onlyB.sort(compareBySheetThenWeight);
+
+  renderCompareList("diff-only-a", onlyA, "A에만 있는 번뜩임 없음");
+  renderCompareList("diff-only-b", onlyB, "B에만 있는 번뜩임 없음");
+  renderCompareList("diff-common", common, "공통 번뜩임 없음");
 }
 
 function matchEntry(e, f) {
@@ -218,9 +503,10 @@ function matchEntry(e, f) {
   if (f.mode === "기본" && e.mode !== "기본") return false;
   if (f.mode === "출격" && e.mode !== "출격") return false;
 
-  if (!f.gods.size) return false;
+  const godSet = new Set(f.gods ?? []);
+  if (!godSet.size) return false;
   const godOrder = bundle.meta.god_order;
-  if (f.gods.size < godOrder.length && !f.gods.has(e.god_code)) return false;
+  if (godSet.size < godOrder.length && !godSet.has(e.god_code)) return false;
 
   const clsMap = {
     striker: "ok_striker",
@@ -462,16 +748,10 @@ function buildColumnPicker() {
   });
 }
 
-function refresh() {
+function refresh(options = {}) {
   if (!bundle) return;
   const f = getFilters();
-  let matched = bundle.entries.filter((e) => matchEntry(e, f));
-  matched = applyDedupe(matched, f.dedupe);
-  const commonRows = matched.filter((e) => isCommonSheet(e.sheet));
-  const godRows = matched.filter((e) => !isCommonSheet(e.sheet));
-  commonRows.sort(compareBySheetThenWeight);
-  godRows.sort(compareBySheetThenWeight);
-  matched = [...commonRows, ...godRows];
+  const matched = computeMatched(f);
 
   const tbody = document.getElementById("result-body");
   const colCount = visibleColumns().length;
@@ -490,6 +770,12 @@ function refresh() {
     }
   }
   document.getElementById("count-label").textContent = `${matched.length}건`;
+
+  if (!options.skipHistory) {
+    pushSearchHistory(f, matched);
+    renderHistoryPanel();
+    renderComparePanel();
+  }
 }
 
 function escapeHtml(s) {
@@ -618,6 +904,22 @@ function buildUI(meta) {
   document.getElementById("tag-help").addEventListener("click", () =>
     showHelp("태그 선택", TAG_STATE_HELP)
   );
+
+  document.getElementById("clear-history").addEventListener("click", () => {
+    searchHistory = [];
+    compareAId = null;
+    compareBId = null;
+    saveSearchHistoryStore();
+    renderHistoryPanel();
+    renderComparePanel();
+  });
+
+  document.getElementById("clear-compare").addEventListener("click", () => {
+    compareAId = null;
+    compareBId = null;
+    renderHistoryPanel();
+    renderComparePanel();
+  });
 }
 
 function buildGodLegend(meta) {
@@ -651,7 +953,10 @@ async function loadData() {
   buildGodLegend(bundle.meta);
   buildResultTableHead();
   buildUI(bundle.meta);
-  refresh();
+  searchHistory = loadSearchHistory();
+  renderHistoryPanel();
+  renderComparePanel();
+  refresh({ skipHistory: true });
 }
 
 loadData().catch((err) => {

@@ -8,7 +8,7 @@
       name="description"
       content="카드 조건(코스트·유형·직업·태그)에 맞는 신 번뜩임을 조회합니다. 비공식 팬 도구, 오프라인 동작."
     />
-    <link rel="stylesheet" href="style.css?v=5" />
+    <link rel="stylesheet" href="style.css?v=6" />
   </head>
   <body>
     <header class="site-header">
@@ -99,6 +99,35 @@
           </table>
         </div>
       </section>
+
+      <aside class="panel side-panel" aria-label="최근 검색 및 비교">
+        <h2>최근 검색</h2>
+        <p class="hint">항목의 <strong>A</strong>·<strong>B</strong>를 눌러 두 카드를 고르면, 겹치지 않는 번뜩임을 비교합니다.</p>
+        <div id="history-list" class="history-list"></div>
+        <div class="history-toolbar">
+          <button type="button" class="secondary-btn" id="clear-compare">비교 해제</button>
+          <button type="button" class="secondary-btn" id="clear-history">기록 지우기</button>
+        </div>
+
+        <div id="compare-panel" class="compare-panel" hidden>
+          <h3>카드 비교</h3>
+          <p class="compare-label" id="compare-a-label"></p>
+          <p class="compare-label" id="compare-b-label"></p>
+
+          <div class="compare-block">
+            <h4>A에만 있음 <span class="compare-count" id="diff-only-a-count"></span></h4>
+            <div id="diff-only-a" class="compare-scroll"></div>
+          </div>
+          <div class="compare-block">
+            <h4>B에만 있음 <span class="compare-count" id="diff-only-b-count"></span></h4>
+            <div id="diff-only-b" class="compare-scroll"></div>
+          </div>
+          <details class="compare-common">
+            <summary>공통 번뜩임 <span class="compare-count" id="diff-common-count"></span></summary>
+            <div id="diff-common" class="compare-scroll"></div>
+          </details>
+        </div>
+      </aside>
     </main>
 
     <footer class="site-footer">
@@ -116,6 +145,6 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=10" type="module"></script>
+    <script src="app.js?v=11" type="module"></script>
   </body>
 </html>

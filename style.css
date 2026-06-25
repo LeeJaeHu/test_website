@@ -54,10 +54,20 @@ body {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) 1fr;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr) minmax(240px, 300px);
   gap: 1rem;
   padding: 1rem 1.5rem 2rem;
   align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .layout {
+    grid-template-columns: minmax(260px, 340px) 1fr;
+  }
+
+  .side-panel {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 900px) {
@@ -440,4 +450,196 @@ dialog form button {
 
 dialog::backdrop {
   background: rgba(0, 0, 0, 0.55);
+}
+
+.side-panel h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.92rem;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 42vh;
+  overflow: auto;
+  margin-bottom: 0.5rem;
+}
+
+.history-item {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 0.8rem;
+}
+
+.history-item-active {
+  border-color: var(--accent);
+}
+
+.history-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  line-height: 1.35;
+}
+
+.history-meta strong {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.history-count {
+  color: var(--accent);
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.history-slot-btn {
+  min-width: 1.75rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.history-slot-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: #fff;
+}
+
+.history-load-btn {
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+
+.history-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.history-toolbar .secondary-btn {
+  margin-top: 0;
+  flex: 1;
+  min-width: 6rem;
+}
+
+.compare-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 0.65rem;
+}
+
+.compare-label {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.compare-block {
+  margin: 0.65rem 0;
+}
+
+.compare-block h4,
+.compare-common summary {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.compare-count {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.compare-scroll {
+  max-height: 28vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.compare-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.compare-list-item {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.compare-list-item:last-child {
+  border-bottom: none;
+}
+
+.compare-desc {
+  display: block;
+  line-height: 1.35;
+}
+
+.compare-sub {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.compare-empty {
+  padding: 0.75rem;
+  margin: 0;
+}
+
+.compare-common {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.compare-common summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.compare-list-item.row-god-nihilum {
+  background: rgba(110, 176, 255, 0.18);
+  box-shadow: inset 3px 0 0 #6eb0ff;
+}
+.compare-list-item.row-god-diallos {
+  background: rgba(232, 192, 106, 0.18);
+  box-shadow: inset 3px 0 0 #e8c06a;
+}
+.compare-list-item.row-god-secred {
+  background: rgba(111, 217, 122, 0.18);
+  box-shadow: inset 3px 0 0 #6fd97a;
+}
+.compare-list-item.row-god-circen {
+  background: rgba(240, 181, 160, 0.2);
+  box-shadow: inset 3px 0 0 #f0b5a0;
+}
+.compare-list-item.row-god-vitor {
+  background: rgba(240, 112, 112, 0.18);
+  box-shadow: inset 3px 0 0 #f07070;
+}
+.compare-list-item.row-god-caligo {
+  background: rgba(179, 156, 255, 0.18);
+  box-shadow: inset 3px 0 0 #b39cff;
 }
