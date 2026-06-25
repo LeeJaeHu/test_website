@@ -127,19 +127,51 @@ function entryWeightNum(weight) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function formatProb(p) {
+  return p > 0 ? `${(p * 100).toFixed(1)}%` : "—";
+}
+
+/** @param {object[]} rawEntries */
+function computeRawProbabilities(rawEntries) {
+  /** @type {Map<string, number>} */
+  const godTotals = new Map();
+  /** @type {Map<string, Set<string>>} */
+  const godsByMode = new Map();
+  for (const e of rawEntries) {
+    const god = e.god_code;
+    if (!god) continue;
+    const mode = e.mode;
+    const w = entryWeightNum(e.weight);
+    const key = `${mode}\0${god}`;
+    godTotals.set(key, (godTotals.get(key) ?? 0) + w);
+    if (!godsByMode.has(mode)) godsByMode.set(mode, new Set());
+    godsByMode.get(mode).add(god);
+  }
+  /** @type {Map<string, number>} */
+  const probs = new Map();
+  for (const e of rawEntries) {
+    const god = e.god_code;
+    const mode = e.mode;
+    const gCount = godsByMode.get(mode)?.size ?? 0;
+    const total = godTotals.get(`${mode}\0${god}`) ?? 0;
+    const w = entryWeightNum(e.weight);
+    probs.set(
+      e.id,
+      gCount > 0 && total > 0 && w > 0 ? (1 / gCount) * (w / total) : 0
+    );
+  }
+  return probs;
+}
+
 function attachProbabilities(entries) {
-  const weights = entries.map((e) => entryWeightNum(e.weight));
-  const total = weights.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < entries.length; i++) {
-    const w = weights[i];
-    entries[i].probability = total > 0 && w > 0 ? `${((w / total) * 100).toFixed(1)}%` : "—";
+  for (const e of entries) {
+    const p = e._prob;
+    e.probability = p != null ? formatProb(p) : "—";
   }
 }
 
 function sparkMatchesCost(min, max, cardCost) {
-  if (min <= cardCost && cardCost <= max) return true;
-  if (min === -1 && max === 0 && cardCost >= 0) return true;
-  return false;
+  return min <= cardCost && cardCost <= max;
 }
 
 function effectKeyStr(entry) {
@@ -202,8 +234,13 @@ function mergeSameGodVariants(members) {
   };
 }
 
-function applyDedupe(matched, dedupe) {
-  if (!dedupe) return matched;
+function applyDedupe(matched, dedupe, rawProbs) {
+  if (!dedupe) {
+    return matched.map((e) => {
+      const p = rawProbs.get(e.id) ?? 0;
+      return { ...e, _prob: p, probability: formatProb(p) };
+    });
+  }
   /** @type {Map<string, object[]>} */
   const buckets = new Map();
   for (const e of matched) {
@@ -213,14 +250,15 @@ function applyDedupe(matched, dedupe) {
   }
   const merged = [];
   for (const members of buckets.values()) {
+    const p = members.reduce((s, e) => s + (rawProbs.get(e.id) ?? 0), 0);
     if (members.length === 1) {
-      merged.push(members[0]);
+      merged.push({ ...members[0], _prob: p, probability: formatProb(p) });
       continue;
     }
     const uniqueGods = new Set(members.map((e) => e.god));
-    merged.push(
-      uniqueGods.size >= 2 ? mergeGodClones(members) : mergeSameGodVariants(members)
-    );
+    const row =
+      uniqueGods.size >= 2 ? mergeGodClones(members) : mergeSameGodVariants(members);
+    merged.push({ ...row, _prob: p, probability: formatProb(p) });
   }
   return merged;
 }
@@ -299,8 +337,9 @@ function entryCompareKey(entry, dedupe) {
 
 function computeMatched(filters) {
   if (!bundle) return [];
-  let matched = bundle.entries.filter((e) => matchEntry(e, filters));
-  matched = applyDedupe(matched, filters.dedupe);
+  const raw = bundle.entries.filter((e) => matchEntry(e, filters));
+  const rawProbs = computeRawProbabilities(raw);
+  let matched = applyDedupe(raw, filters.dedupe, rawProbs);
   const commonRows = matched.filter((e) => isCommonSheet(e.sheet));
   const godRows = matched.filter((e) => !isCommonSheet(e.sheet));
   commonRows.sort(compareBySheetThenWeight);
