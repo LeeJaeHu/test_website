@@ -20,6 +20,7 @@ const RESULT_COLUMNS = [
   { key: "description", label: "설명", mono: false },
   { key: "conditions", label: "조건", mono: false },
   { key: "weight", label: "가중치", mono: false },
+  { key: "probability", label: "확률", mono: false },
   { key: "mode", label: "모드", mono: false },
   { key: "god", label: "신", mono: false },
   { key: "id", label: "ID", mono: true },
@@ -30,6 +31,7 @@ const COLUMN_DEFAULT_WIDTH_PX = {
   description: 240,
   conditions: 300,
   weight: 72,
+  probability: 56,
   mode: 64,
   god: 100,
   id: 180,
@@ -102,6 +104,24 @@ function applyRowGodStyle(tr, entry) {
   if (codes.length !== 1) return;
 
   tr.className = `row-god-${codes[0].toLowerCase()}`;
+}
+
+function entryWeightNum(weight) {
+  if (typeof weight === "number") return weight;
+  const s = String(weight);
+  const range = s.match(/^(\d+)~(\d+)$/);
+  if (range) return (Number(range[1]) + Number(range[2])) / 2;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function attachProbabilities(entries) {
+  const weights = entries.map((e) => entryWeightNum(e.weight));
+  const total = weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < entries.length; i++) {
+    const w = weights[i];
+    entries[i].probability = total > 0 && w > 0 ? `${((w / total) * 100).toFixed(1)}%` : "—";
+  }
 }
 
 function sparkMatchesCost(min, max, cardCost) {
@@ -273,7 +293,9 @@ function computeMatched(filters) {
   const godRows = matched.filter((e) => !isCommonSheet(e.sheet));
   commonRows.sort(compareBySheetThenWeight);
   godRows.sort(compareBySheetThenWeight);
-  return [...commonRows, ...godRows];
+  matched = [...commonRows, ...godRows];
+  attachProbabilities(matched);
+  return matched;
 }
 
 function slimEntryForHistory(entry) {
@@ -287,6 +309,7 @@ function slimEntryForHistory(entry) {
     description: entry.description,
     conditions: entry.conditions ?? "",
     weight: entry.weight,
+    probability: entry.probability ?? "",
     effect_key: entry.effect_key,
   };
 }
@@ -730,7 +753,7 @@ function buildColumnPicker() {
   });
 
   document.getElementById("cols-minimal").addEventListener("click", () => {
-    visibleColumnKeys = new Set(["description", "conditions", "weight"]);
+    visibleColumnKeys = new Set(["description", "conditions", "weight", "probability"]);
     saveVisibleColumns();
     row.querySelectorAll("input[type=checkbox]").forEach((el) => {
       const key = el.getAttribute("data-col-key");
@@ -939,7 +962,7 @@ function buildGodLegend(meta) {
   el.appendChild(note);
 }
 
-const LOOKUP_DATA_V = 2;
+const LOOKUP_DATA_V = 3;
 
 async function loadData() {
   const res = await fetch(`data/lookup.json?v=${LOOKUP_DATA_V}`, { cache: "no-cache" });
@@ -960,6 +983,6 @@ async function loadData() {
 }
 
 loadData().catch((err) => {
-  document.getElementById("result-body").innerHTML = `<tr><td colspan="7" class="empty">데이터 로드 실패: ${escapeHtml(err.message)}<br><br>GitHub Pages로 열거나, web 폴더에서 <code>python -m http.server</code> 후 접속하세요.</td></tr>`;
+  document.getElementById("result-body").innerHTML = `<tr><td colspan="8" class="empty">데이터 로드 실패: ${escapeHtml(err.message)}<br><br>GitHub Pages로 열거나, web 폴더에서 <code>python -m http.server</code> 후 접속하세요.</td></tr>`;
   document.getElementById("count-label").textContent = "오류";
 });
