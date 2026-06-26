@@ -186,7 +186,18 @@ function getFilters() {
     }
   }
 
-  return { showAll, cost, typeCode, classCode, dedupe, tagStates, text };
+  /** @type {Set<string>} */
+  const miscTagsOnCard = new Set();
+  if (bundle?.meta.misc_tags) {
+    for (const tag of bundle.meta.misc_tags) {
+      const el = /** @type {HTMLInputElement} */ (
+        document.getElementById(`misc-tag-${tag.code}`)
+      );
+      if (el?.checked) miscTagsOnCard.add(tag.code);
+    }
+  }
+
+  return { showAll, cost, typeCode, classCode, dedupe, tagStates, miscTagsOnCard, text };
 }
 
 function matchEntry(e, f) {
@@ -215,6 +226,10 @@ function matchEntry(e, f) {
     }
     if (state === "포함" && e[`ban_${code}`]) return false;
     if (state === "없음" && e[`req_${code}`]) return false;
+  }
+
+  for (const code of f.miscTagsOnCard) {
+    if (e[`ban_${code}`]) return false;
   }
 
   if (f.text) {
@@ -339,6 +354,28 @@ function addRadios(containerId, name, options, defaultIndex, onChange) {
   });
 }
 
+function buildMiscTagRows(meta) {
+  const container = document.getElementById("misc-tag-rows");
+  if (!container) return;
+  container.replaceChildren();
+  const tags = meta.misc_tags ?? [];
+  if (!tags.length) {
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.textContent = "추가 태그 없음";
+    container.appendChild(p);
+    return;
+  }
+  for (const tag of tags) {
+    const id = `misc-tag-${tag.code}`;
+    const label = document.createElement("label");
+    label.className = "inline misc-tag-item";
+    label.innerHTML = `<input type="checkbox" id="${id}" data-misc-code="${escapeHtml(tag.code)}" /> ${escapeHtml(tag.label)}`;
+    container.appendChild(label);
+    label.querySelector("input").addEventListener("change", refresh);
+  }
+}
+
 function buildTagRows(meta) {
   const container = document.getElementById("tag-rows");
   container.replaceChildren();
@@ -385,6 +422,7 @@ function buildUI(meta) {
     code: c.code ?? "",
   })), 0, refresh);
   buildTagRows(meta);
+  buildMiscTagRows(meta);
 
   document.getElementById("tag-help").addEventListener("click", () => {
     document.getElementById("help-title").textContent = "태그 선택";
@@ -395,6 +433,9 @@ function buildUI(meta) {
     for (const el of document.querySelectorAll('[id^="tag-"][data-tag-code] input[value="무관"]')) {
       /** @type {HTMLInputElement} */ (el).checked = true;
     }
+    for (const el of document.querySelectorAll("#misc-tag-rows input[type=checkbox]")) {
+      /** @type {HTMLInputElement} */ (el).checked = false;
+    }
     refresh();
   });
   document.getElementById("dedupe").addEventListener("change", refresh);
@@ -402,7 +443,7 @@ function buildUI(meta) {
   document.getElementById("text-filter").addEventListener("input", refresh);
 }
 
-const COMMON_DATA_V = 1;
+const COMMON_DATA_V = 2;
 
 async function loadData() {
   const res = await fetch(`data/common.json?v=${COMMON_DATA_V}`, { cache: "no-cache" });

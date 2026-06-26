@@ -159,6 +159,17 @@ legend {
   gap: 0.25rem 0.5rem;
 }
 
+.misc-tag-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.misc-tag-item {
+  font-size: 0.82rem;
+  white-space: normal;
+}
+
 label.inline {
   display: inline-flex;
   align-items: center;
