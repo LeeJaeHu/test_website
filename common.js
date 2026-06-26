@@ -418,12 +418,6 @@ function addRadios(containerId, name, options, defaultIndex, onChange) {
   });
 }
 
-function resolveMiscTags(meta) {
-  const fromMeta = meta?.misc_tags;
-  if (Array.isArray(fromMeta) && fromMeta.length) return fromMeta;
-  return FALLBACK_MISC_TAGS;
-}
-
 function buildMiscTagRows(meta) {
   const container = document.getElementById("misc-tag-rows");
   if (!container) return;
@@ -520,6 +514,24 @@ async function loadData() {
 }
 
 loadData().catch((err) => {
-  document.getElementById("result-body").innerHTML = `<tr><td colspan="5" class="empty">데이터 로드 실패: ${escapeHtml(err.message)}<br><br><code>python export_web_data.py</code> 실행 후 다시 시도하세요.</td></tr>`;
-  document.getElementById("count-label").textContent = "오류";
+  showLoadError(err?.message ?? String(err));
 });
+
+function showLoadError(message) {
+  const tbody = document.getElementById("result-body");
+  const count = document.getElementById("count-label");
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">데이터 로드 실패: ${escapeHtml(message)}<br><br>web 폴더에서 <code>python -m http.server</code> 후 접속하거나, <code>python export_web_data.py</code>로 JSON을 생성하세요.</td></tr>`;
+  }
+  if (count) count.textContent = "오류";
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (ev) => {
+    if (bundle) return;
+    const msg = ev.message || "스크립트 오류";
+    if (msg.includes("already been declared")) {
+      showLoadError("common.js 구문 오류 — 페이지를 강력 새로고침(Ctrl+F5)하세요.");
+    }
+  });
+}
