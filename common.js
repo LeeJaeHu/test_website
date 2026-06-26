@@ -24,6 +24,24 @@ const FALLBACK_MISC_TAGS = [
   { code: "all_turncountadd", label: "턴 카운트+" },
 ];
 
+/** ban_* 없을 때 conditions 문자열로 판별 */
+const MISC_TAG_BAN_PHRASE = {
+  strength: "사기 태그 카드 제외",
+  dexterity: "결의 태그 카드 제외",
+  dmgresist: "피해 저항 태그 카드 제외",
+  nine_exhaust: "9중 소진 태그 카드 제외",
+  vulnerable: "취약 태그 카드 제외",
+  weak: "약화 태그 카드 제외",
+  mark: "표식 태그 카드 제외",
+  pain: "고통 태그 카드 제외",
+  counter: "카운터 태그 카드 제외",
+  turncounter: "턴 카운터 태그 카드 제외",
+  dmgdecrease: "피해 감소 태그 카드 제외",
+  egodmg: "에고 피해 태그 카드 제외",
+  ap: "행동 포인트 태그 카드 제외",
+  ep: "에너지 포인트 태그 카드 제외",
+};
+
 const RESULT_COLUMNS = [
   { key: "description", label: "설명", mono: false, sortable: true },
   { key: "conditions", label: "조건", mono: false, sortable: false },
@@ -99,13 +117,13 @@ function mergeVariants(members) {
   const description = descs.length === 1 ? descs[0] : descs.join(" / ");
   const prob = members.reduce((s, e) => s + probNum(e), 0);
   return {
+    ...first,
     id: ids.join(", "),
     description,
     conditions: first.conditions ?? "",
     weight,
     _prob: prob,
     probability: formatProb(prob),
-    effect_key: first.effect_key,
   };
 }
 
@@ -217,7 +235,28 @@ function getFilters() {
   return { showAll, cost, typeCode, classCode, dedupe, tagStates, miscTagsOnCard, text };
 }
 
-function matchEntry(e, f) {
+function resolveMiscTags(meta) {
+  const fromMeta = meta?.misc_tags;
+  if (Array.isArray(fromMeta) && fromMeta.length) return fromMeta;
+  return FALLBACK_MISC_TAGS;
+}
+
+/** 번뜩임이 이 태그를 가진 카드를 제외하는지 */
+function entryBansTag(entry, code) {
+  if (Number(entry[`ban_${code}`]) === 1) return true;
+  const phrase = MISC_TAG_BAN_PHRASE[code];
+  const cond = String(entry.conditions ?? "");
+  return !!(phrase && cond.includes(phrase));
+}
+
+function passesMiscTagFilter(entry, miscTagsOnCard) {
+  for (const code of miscTagsOnCard) {
+    if (entryBansTag(entry, code)) return false;
+  }
+  return true;
+}
+
+function matchCardFilters(e, f) {
   if (!sparkMatchesCost(e.cost_min, e.cost_max, f.cost)) return false;
 
   if (f.typeCode === "CARD_ATK" && !e.ok_atk) return false;
@@ -245,10 +284,6 @@ function matchEntry(e, f) {
     if (state === "없음" && e[`req_${code}`]) return false;
   }
 
-  for (const code of f.miscTagsOnCard) {
-    if (e[`ban_${code}`]) return false;
-  }
-
   if (f.text) {
     const hay = `${e.description}\n${e.id}\n${e.conditions}`.toLowerCase();
     if (!hay.includes(f.text)) return false;
@@ -256,13 +291,25 @@ function matchEntry(e, f) {
   return true;
 }
 
+function matchEntry(e, f) {
+  if (!matchCardFilters(e, f)) return false;
+  return passesMiscTagFilter(e, f.miscTagsOnCard);
+}
+
 function computeMatched(filters) {
   if (!bundle) return [];
   let raw = bundle.entries;
   if (!filters.showAll) {
     raw = raw.filter((e) => matchEntry(e, filters));
-  } else if (filters.text) {
-    raw = raw.filter((e) => matchEntry(e, filters));
+  } else {
+    raw = raw.filter(
+      (e) =>
+        passesMiscTagFilter(e, filters.miscTagsOnCard) &&
+        (!filters.text ||
+          `${e.description}\n${e.id}\n${e.conditions}`
+            .toLowerCase()
+            .includes(filters.text))
+    );
   }
 
   const rawProbs = new Map();
