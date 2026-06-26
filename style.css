@@ -160,9 +160,9 @@ legend {
 }
 
 .misc-tag-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.35rem 0.75rem;
 }
 
 .misc-tag-item {

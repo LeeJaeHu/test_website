@@ -5,6 +5,25 @@ const TAG_STATE_HELP =
   "· 없음: 없음 → 이 태그를 요구하는 번뜩임 제거\n\n" +
   "소멸(exhaust): 카드 extra_tag와 TALENT_EXHAUST(소멸)를 동일하게 처리합니다.";
 
+/** JSON에 misc_tags가 없을 때 사용 (구버전 common.json 호환) */
+const FALLBACK_MISC_TAGS = [
+  { code: "strength", label: "사기" },
+  { code: "dexterity", label: "결의" },
+  { code: "dmgresist", label: "피해 저항" },
+  { code: "nine_exhaust", label: "9중 소진" },
+  { code: "vulnerable", label: "취약" },
+  { code: "weak", label: "약화" },
+  { code: "mark", label: "표식" },
+  { code: "pain", label: "고통" },
+  { code: "counter", label: "카운터" },
+  { code: "turncounter", label: "턴 카운터" },
+  { code: "dmgdecrease", label: "피해 감소" },
+  { code: "egodmg", label: "에고 피해" },
+  { code: "ap", label: "행동 포인트" },
+  { code: "ep", label: "에너지 포인트" },
+  { code: "all_turncountadd", label: "턴 카운트+" },
+];
+
 const RESULT_COLUMNS = [
   { key: "description", label: "설명", mono: false, sortable: true },
   { key: "conditions", label: "조건", mono: false, sortable: false },
@@ -188,13 +207,11 @@ function getFilters() {
 
   /** @type {Set<string>} */
   const miscTagsOnCard = new Set();
-  if (bundle?.meta.misc_tags) {
-    for (const tag of bundle.meta.misc_tags) {
-      const el = /** @type {HTMLInputElement} */ (
-        document.getElementById(`misc-tag-${tag.code}`)
-      );
-      if (el?.checked) miscTagsOnCard.add(tag.code);
-    }
+  for (const tag of resolveMiscTags(bundle?.meta)) {
+    const el = /** @type {HTMLInputElement} */ (
+      document.getElementById(`misc-tag-${tag.code}`)
+    );
+    if (el?.checked) miscTagsOnCard.add(tag.code);
   }
 
   return { showAll, cost, typeCode, classCode, dedupe, tagStates, miscTagsOnCard, text };
@@ -354,23 +371,24 @@ function addRadios(containerId, name, options, defaultIndex, onChange) {
   });
 }
 
+function resolveMiscTags(meta) {
+  const fromMeta = meta?.misc_tags;
+  if (Array.isArray(fromMeta) && fromMeta.length) return fromMeta;
+  return FALLBACK_MISC_TAGS;
+}
+
 function buildMiscTagRows(meta) {
   const container = document.getElementById("misc-tag-rows");
   if (!container) return;
   container.replaceChildren();
-  const tags = meta.misc_tags ?? [];
-  if (!tags.length) {
-    const p = document.createElement("p");
-    p.className = "hint";
-    p.textContent = "추가 태그 없음";
-    container.appendChild(p);
-    return;
-  }
+  const tags = resolveMiscTags(meta);
   for (const tag of tags) {
     const id = `misc-tag-${tag.code}`;
     const label = document.createElement("label");
     label.className = "inline misc-tag-item";
-    label.innerHTML = `<input type="checkbox" id="${id}" data-misc-code="${escapeHtml(tag.code)}" /> ${escapeHtml(tag.label)}`;
+    label.title = tag.code;
+    const text = tag.label.includes("(") ? tag.label : tag.label;
+    label.innerHTML = `<input type="checkbox" id="${id}" data-misc-code="${escapeHtml(tag.code)}" /> ${escapeHtml(text)}`;
     container.appendChild(label);
     label.querySelector("input").addEventListener("change", refresh);
   }
@@ -443,7 +461,7 @@ function buildUI(meta) {
   document.getElementById("text-filter").addEventListener("input", refresh);
 }
 
-const COMMON_DATA_V = 2;
+const COMMON_DATA_V = 3;
 
 async function loadData() {
   const res = await fetch(`data/common.json?v=${COMMON_DATA_V}`, { cache: "no-cache" });
