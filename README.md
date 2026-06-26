@@ -65,10 +65,13 @@ python -m http.server 8080
 
 | 파일 | 설명 |
 |------|------|
-| `index.html` | UI |
-| `app.js` | 필터·묶기 로직 |
+| `index.html` | 신 번뜩임 조회 UI |
+| `common.html` | 일반 번뜩임 목록 UI |
+| `app.js` | 신 번뜩임 필터·묶기 로직 |
+| `common.js` | 일반 번뜩임 필터·목록 |
 | `style.css` | 스타일 |
-| `data/lookup.json` | 조회 데이터 (`export_web_data.py` 생성) |
+| `data/lookup.json` | 신 번뜩임 데이터 (`export_web_data.py` 생성) |
+| `data/common.json` | 일반 번뜩임 데이터 (`export_web_data.py` 생성) |
 | `.nojekyll` | GitHub Pages Jekyll 비활성 |
 
 ## 면책

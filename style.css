@@ -52,12 +52,40 @@ body {
   font-size: 0.85rem;
 }
 
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-top: 0.65rem;
+  font-size: 0.88rem;
+}
+
+.site-nav a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  text-decoration: underline;
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .layout {
   display: grid;
   grid-template-columns: minmax(260px, 340px) minmax(0, 1fr) minmax(240px, 300px);
   gap: 1rem;
   padding: 1rem 1.5rem 2rem;
   align-items: start;
+}
+
+.layout.layout-browse {
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
 }
 
 @media (max-width: 1200px) {
@@ -210,6 +238,28 @@ label.inline {
   font-size: 0.85rem;
 }
 
+.field-block {
+  display: block;
+  margin: 0.75rem 0;
+}
+
+.field-block .field-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field-block input[type="search"] {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
 .count {
   margin: 0.5rem 0 0;
   font-weight: 600;
@@ -335,6 +385,14 @@ th {
 }
 
 tbody tr:not([class*="row-god-"]):hover {
+  background: var(--row-hover);
+}
+
+tbody tr.row-common-spark {
+  background: rgba(168, 184, 208, 0.06);
+}
+
+tbody tr.row-common-spark:hover {
   background: var(--row-hover);
 }
 

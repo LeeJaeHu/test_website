@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>카오스 제로 나이트메어 — 일반 번뜩임 목록</title>
+    <meta
+      name="description"
+      content="무색 코어 등으로 부여되는 일반 번뜩임(god_type=none) 전체 목록·카드 조건 조회. 비공식 팬 도구."
+    />
+    <link rel="stylesheet" href="style.css?v=8" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>일반 번뜩임 목록</h1>
+      <p class="subtitle">Chaos Zero Nightmare · 비공식 팬 도구 · 브라우저에서만 동작</p>
+      <nav class="site-nav" aria-label="도구 이동">
+        <a href="index.html">신 번뜩임 조회</a>
+        <a href="common.html" aria-current="page">일반 번뜩임 목록</a>
+      </nav>
+    </header>
+
+    <main class="layout layout-browse">
+      <aside class="panel filters" aria-label="카드 조건">
+        <h2>카드 조건</h2>
+        <p class="hint">
+          무색 코어·일반 번뜩임 재발현 등으로 부여되는 <strong>일반 번뜩임</strong> 풀입니다.
+          신 번뜩임(심연 코어)과 별개입니다.
+        </p>
+
+        <fieldset>
+          <legend>코스트 (0~4)</legend>
+          <div class="radio-row" id="cost-row"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>카드 유형</legend>
+          <div class="radio-row" id="type-row"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>직업</legend>
+          <div class="radio-row" id="class-row"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>
+            카드 태그
+            <button type="button" class="help-btn" id="tag-help" title="태그 선택 설명">?</button>
+          </legend>
+          <p class="hint">무관 · 포함 · 없음</p>
+          <div id="tag-rows"></div>
+          <button type="button" class="secondary-btn" id="reset-tags">태그 전체 무관</button>
+        </fieldset>
+
+        <label class="field-block">
+          <span class="field-label">설명 검색</span>
+          <input type="search" id="text-filter" placeholder="설명·ID 일부 입력" autocomplete="off" />
+        </label>
+
+        <label class="checkbox-line">
+          <input type="checkbox" id="dedupe" checked />
+          동일 효과 묶기
+        </label>
+
+        <label class="checkbox-line">
+          <input type="checkbox" id="show-all" />
+          필터 없이 전체 목록
+        </label>
+
+        <p class="count" id="count-label">불러오는 중…</p>
+      </aside>
+
+      <section class="panel results" aria-label="일반 번뜩임 목록">
+        <div class="results-toolbar">
+          <h2>일반 번뜩임</h2>
+          <p class="hint col-resize-hint">
+            확률 = 조회 결과 풀 내 가중치 비율 (일반 번뜩임은 신 구분 없음) · 열 헤더 클릭 정렬
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <colgroup id="result-cols"></colgroup>
+            <thead>
+              <tr></tr>
+            </thead>
+            <tbody id="result-body">
+              <tr>
+                <td colspan="5" class="empty">데이터 로드 중…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        게임 데이터 기반 비공식 도구입니다. 패치 후
+        <code>python export_web_data.py</code>로 JSON을 갱신하세요.
+      </p>
+    </footer>
+
+    <dialog id="help-dialog">
+      <form method="dialog">
+        <h3 id="help-title"></h3>
+        <pre id="help-body"></pre>
+        <button value="close">닫기</button>
+      </form>
+    </dialog>
+
+    <script src="common.js?v=1" type="module"></script>
+  </body>
+</html>
