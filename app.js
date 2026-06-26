@@ -39,8 +39,15 @@ const COLUMN_DEFAULT_WIDTH_PX = {
 
 const VISIBLE_COLS_KEY = "spark-lookup-visible-cols";
 const COLUMN_WIDTHS_KEY = "spark-lookup-col-widths";
+const RESULT_SORT_KEY = "spark-lookup-result-sort";
 const SEARCH_HISTORY_KEY = "spark-lookup-search-history";
 const MAX_SEARCH_HISTORY = 12;
+
+/** @type {Set<string>} */
+const SORTABLE_RESULT_COLUMNS = new Set(["probability", "god", "weight", "sheet"]);
+
+/** @type {{ key: string|null, dir: "asc"|"desc" }} */
+let resultSort = { key: null, dir: "desc" };
 
 /** @type {Set<string>} */
 let visibleColumnKeys = new Set();
@@ -340,12 +347,8 @@ function computeMatched(filters) {
   const raw = bundle.entries.filter((e) => matchEntry(e, filters));
   const rawProbs = computeRawProbabilities(raw);
   let matched = applyDedupe(raw, filters.dedupe, rawProbs);
-  const commonRows = matched.filter((e) => isCommonSheet(e.sheet));
-  const godRows = matched.filter((e) => !isCommonSheet(e.sheet));
-  commonRows.sort(compareBySheetThenWeight);
-  godRows.sort(compareBySheetThenWeight);
-  matched = [...commonRows, ...godRows];
   attachProbabilities(matched);
+  matched = sortMatched(matched, resultSort);
   return matched;
 }
 
@@ -814,6 +817,89 @@ function compareBySheetThenWeight(a, b) {
   return String(a.id).localeCompare(String(b.id));
 }
 
+function probNum(entry) {
+  if (entry._prob != null) return entry._prob;
+  const s = String(entry.probability ?? "").replace("%", "").trim();
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n / 100 : 0;
+}
+
+function compareByGodName(a, b) {
+  const ka = godSortKey(a.god);
+  const kb = godSortKey(b.god);
+  if (ka[0] !== kb[0]) return ka[0] - kb[0];
+  return String(a.god ?? "").localeCompare(String(b.god ?? ""), "ko");
+}
+
+function sortMatched(entries, sort) {
+  if (!sort.key) {
+    const commonRows = entries.filter((e) => isCommonSheet(e.sheet));
+    const godRows = entries.filter((e) => !isCommonSheet(e.sheet));
+    commonRows.sort(compareBySheetThenWeight);
+    godRows.sort(compareBySheetThenWeight);
+    return [...commonRows, ...godRows];
+  }
+
+  const dir = sort.dir === "asc" ? 1 : -1;
+  return [...entries].sort((a, b) => {
+    let cmp = 0;
+    switch (sort.key) {
+      case "probability":
+        cmp = probNum(a) - probNum(b);
+        break;
+      case "weight":
+        cmp = entryWeightNum(a.weight) - entryWeightNum(b.weight);
+        break;
+      case "god":
+        cmp = compareByGodName(a, b);
+        break;
+      case "sheet":
+        cmp = String(a.sheet ?? "").localeCompare(String(b.sheet ?? ""), "ko");
+        break;
+      default:
+        break;
+    }
+    if (cmp !== 0) return cmp * dir;
+    return compareBySheetThenWeight(a, b);
+  });
+}
+
+function loadResultSort() {
+  try {
+    const raw = localStorage.getItem(RESULT_SORT_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== "object") return;
+    if (data.key != null && !SORTABLE_RESULT_COLUMNS.has(data.key)) return;
+    resultSort = {
+      key: data.key ?? null,
+      dir: data.dir === "asc" ? "asc" : "desc",
+    };
+  } catch {
+    /* ignore */
+  }
+}
+
+function saveResultSort() {
+  localStorage.setItem(RESULT_SORT_KEY, JSON.stringify(resultSort));
+}
+
+function cycleResultSort(key) {
+  if (resultSort.key === key) {
+    if (resultSort.dir === "desc") resultSort.dir = "asc";
+    else {
+      resultSort.key = null;
+      resultSort.dir = "desc";
+    }
+  } else {
+    resultSort.key = key;
+    resultSort.dir = "desc";
+  }
+  saveResultSort();
+  buildResultTableHead();
+  refresh();
+}
+
 function buildResultTableHead() {
   const table = document.querySelector(".results table");
   const colgroup = document.getElementById("result-cols");
@@ -837,6 +923,17 @@ function buildResultTableHead() {
     const label = document.createElement("span");
     label.className = "col-label";
     label.textContent = col.label;
+    if (SORTABLE_RESULT_COLUMNS.has(col.key)) {
+      th.classList.add("col-sortable");
+      if (resultSort.key === col.key) {
+        th.classList.add(resultSort.dir === "asc" ? "col-sorted-asc" : "col-sorted-desc");
+      }
+      label.title = "클릭하여 정렬 (내림차순 → 오름차순 → 기본)";
+      label.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        cycleResultSort(col.key);
+      });
+    }
     th.appendChild(label);
     const resizer = document.createElement("span");
     resizer.className = "col-resizer";
@@ -1165,6 +1262,7 @@ async function loadData() {
   godLabelToCode = new Map(bundle.meta.gods.map((g) => [g.label, g.code]));
   visibleColumnKeys = loadVisibleColumns();
   columnWidths = loadColumnWidths();
+  loadResultSort();
   buildColumnPicker();
   buildGodLegend(bundle.meta);
   buildResultTableHead();

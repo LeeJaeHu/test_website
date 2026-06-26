@@ -257,6 +257,26 @@ th.col-header .col-label {
   text-overflow: ellipsis;
 }
 
+th.col-sortable .col-label {
+  cursor: pointer;
+}
+
+th.col-sortable .col-label:hover {
+  color: #9ec5fe;
+}
+
+th.col-sorted-desc .col-label::after {
+  content: " ↓";
+  font-size: 0.78rem;
+  opacity: 0.9;
+}
+
+th.col-sorted-asc .col-label::after {
+  content: " ↑";
+  font-size: 0.78rem;
+  opacity: 0.9;
+}
+
 .col-resizer {
   position: absolute;
   top: 0;
