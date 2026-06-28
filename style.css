@@ -322,9 +322,12 @@ label.inline {
   margin-top: 0.2rem;
   font-size: 0.72rem;
   font-style: normal;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--text);
-  opacity: 0.88;
+  opacity: 0.92;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .card-search-item:hover,
@@ -524,16 +527,15 @@ label.inline {
 .picker-card-desc {
   margin: 0.4rem 0 0;
   font-size: 0.72rem;
-  line-height: 1.4;
+  line-height: 1.45;
   color: var(--text);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .picker-card-desc-compact {
-  -webkit-line-clamp: 3;
+  font-size: 0.7rem;
 }
 
 .picker-spark-preview {
@@ -542,7 +544,7 @@ label.inline {
 }
 
 .picker-spark-preview .picker-card-desc {
-  -webkit-line-clamp: 6;
+  font-size: 0.74rem;
 }
 
 .picker-card-tile-btn {
@@ -560,7 +562,8 @@ label.inline {
 }
 
 .picker-spark-card-grid .picker-card-desc {
-  -webkit-line-clamp: 8;
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 
 .picker-spark-card-grid .picker-card-meta {

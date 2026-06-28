@@ -1,6 +1,6 @@
 /** @typedef {{ id: string, name: string, name_key?: string, description?: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], exhaust?: boolean, source?: string }} CardCatalogEntry */
 
-export const CARDS_DATA_V = 5;
+export const CARDS_DATA_V = 6;
 
 /** @param {CardCatalogEntry} card @param {object} meta @param {{ resolveMiscTags: (meta: object) => { code: string }[] }} helpers */
 export function cardToFilterPatch(card, meta, helpers) {
@@ -44,7 +44,9 @@ function normalizeSearchText(value) {
 
 function cardSearchBlob(card) {
   return normalizeSearchText(
-    [card.name, card.id, card.name_key, card.source].filter(Boolean).join(" ")
+    [card.name, card.id, card.name_key, card.source, card.description]
+      .filter(Boolean)
+      .join(" ")
   );
 }
 
@@ -149,7 +151,7 @@ export async function initCardSearch(options) {
       btn.type = "button";
       btn.className = "card-search-item";
       btn.dataset.index = String(i);
-      const desc = card.description ? card.description.slice(0, 72) : "";
+      const desc = card.description ?? "";
       const metaLine = [
         `${card.filter_cost ?? card.cost}코`,
         typeShort(card.type),
@@ -157,7 +159,7 @@ export async function initCardSearch(options) {
         card.id,
       ].join(" · ");
       const descHtml = desc
-        ? `<em class="card-search-desc">${escapeHtml(desc)}${card.description.length > 72 ? "…" : ""}</em>`
+        ? `<em class="card-search-desc">${escapeHtml(desc)}</em>`
         : "";
       btn.innerHTML = `<strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(metaLine)}</span>${descHtml}`;
       btn.addEventListener("mousedown", (ev) => ev.preventDefault());
