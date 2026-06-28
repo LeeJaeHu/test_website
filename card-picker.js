@@ -276,7 +276,7 @@ function showSparkStep(baseCard) {
     const el = document.createElement("div");
     el.innerHTML = cardTileButtonHtml(result, {
       headline: u.label || "고유",
-      subline: [cardMetaLine(result), u.summary].filter(Boolean).join(" · "),
+      subline: u.summary && u.summary !== desc ? u.summary : cardMetaLine(result),
       descText: desc,
       extraClass: "spark-tile-unique",
     });

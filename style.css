@@ -560,7 +560,12 @@ label.inline {
 }
 
 .picker-spark-card-grid .picker-card-desc {
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 8;
+}
+
+.picker-spark-card-grid .picker-card-meta {
+  font-size: 0.66rem;
+  color: var(--muted);
 }
 
 .picker-spark-list {

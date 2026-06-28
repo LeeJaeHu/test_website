@@ -48,6 +48,8 @@ pip install openpyxl
 python export_web_data.py
 ```
 
+`export_web_data.py` 실행 시 게임 팩에서 `skill_eff.db`도 함께 추출해 카드 효과 문구의 수치(`+40%`, `포식 3` 등)를 치환합니다.
+
 생성된 `web/data/*.json`을 commit & push.
 
 **용량 참고:** `cards.json`에 카드 효과 설명이 포함되어 약 **1.3MB**입니다. 초상화 이미지는 사용하지 않으므로 GitHub Pages에 무리 없습니다. 게임 `bin/`·`data.pack` 등은 **push하지 마세요**.
