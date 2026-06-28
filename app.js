@@ -15,6 +15,42 @@ const TAG_STATE_HELP =
   "· 없음: 없음 → 이 태그를 요구하는 번뜩임 제거\n\n" +
   "소멸(exhaust): 카드 extra_tag와 TALENT_EXHAUST(소멸)를 동일하게 처리합니다.";
 
+/** @type {{ code: string, label: string }[]} */
+const FALLBACK_MISC_TAGS = [
+  { code: "strength", label: "사기" },
+  { code: "dexterity", label: "결의" },
+  { code: "dmgresist", label: "피해 저항" },
+  { code: "nine_exhaust", label: "9중 소진" },
+  { code: "vulnerable", label: "취약" },
+  { code: "weak", label: "약화" },
+  { code: "mark", label: "표식" },
+  { code: "pain", label: "고통" },
+  { code: "counter", label: "카운터" },
+  { code: "turncounter", label: "턴 카운터" },
+  { code: "dmgdecrease", label: "피해 감소" },
+  { code: "egodmg", label: "에고 피해" },
+  { code: "ap", label: "행동 포인트" },
+  { code: "ep", label: "에너지 포인트" },
+  { code: "all_turncountadd", label: "턴 카운트+" },
+];
+
+const MISC_TAG_BAN_PHRASE = {
+  strength: "사기 태그 카드 제외",
+  dexterity: "결의 태그 카드 제외",
+  dmgresist: "피해 저항 태그 카드 제외",
+  nine_exhaust: "9중 소진 태그 카드 제외",
+  vulnerable: "취약 태그 카드 제외",
+  weak: "약화 태그 카드 제외",
+  mark: "표식 태그 카드 제외",
+  pain: "고통 태그 카드 제외",
+  counter: "카운터 태그 카드 제외",
+  turncounter: "턴 카운터 태그 카드 제외",
+  dmgdecrease: "피해 감소 태그 카드 제외",
+  egodmg: "에고 피해 태그 카드 제외",
+  ap: "행동 포인트 태그 카드 제외",
+  ep: "에너지 포인트 태그 카드 제외",
+};
+
 const RESULT_COLUMNS = [
   { key: "sheet", label: "시트", mono: false },
   { key: "description", label: "설명", mono: false },
@@ -270,6 +306,41 @@ function applyDedupe(matched, dedupe, rawProbs) {
   return merged;
 }
 
+function resolveMiscTags(meta) {
+  const fromMeta = meta?.misc_tags;
+  if (Array.isArray(fromMeta) && fromMeta.length) return fromMeta;
+  return FALLBACK_MISC_TAGS;
+}
+
+function entryBansTag(entry, code) {
+  if (Number(entry[`ban_${code}`]) === 1) return true;
+  const phrase = MISC_TAG_BAN_PHRASE[code];
+  const cond = String(entry.conditions ?? "");
+  return !!(phrase && cond.includes(phrase));
+}
+
+function passesMiscTagFilter(entry, miscTagsOnCard) {
+  for (const code of miscTagsOnCard) {
+    if (entryBansTag(entry, code)) return false;
+  }
+  return true;
+}
+
+function buildMiscTagRows(meta) {
+  const container = document.getElementById("misc-tag-rows");
+  if (!container) return;
+  container.replaceChildren();
+  for (const tag of resolveMiscTags(meta)) {
+    const id = `misc-tag-${tag.code}`;
+    const label = document.createElement("label");
+    label.className = "inline misc-tag-item";
+    label.title = tag.code;
+    label.innerHTML = `<input type="checkbox" id="${id}" data-misc-code="${escapeHtml(tag.code)}" /> ${escapeHtml(tag.label)}`;
+    container.appendChild(label);
+    label.querySelector("input").addEventListener("change", refresh);
+  }
+}
+
 function getFilters() {
   const cost = Number(document.querySelector('input[name="cost"]:checked')?.value ?? "2");
   const typeCode = document.querySelector('input[name="type"]:checked')?.dataset.code ?? "";
@@ -296,6 +367,15 @@ function getFilters() {
     }
   }
 
+  /** @type {Set<string>} */
+  const miscTagsOnCard = new Set();
+  for (const tag of resolveMiscTags(bundle?.meta)) {
+    const el = /** @type {HTMLInputElement} */ (
+      document.getElementById(`misc-tag-${tag.code}`)
+    );
+    if (el?.checked) miscTagsOnCard.add(tag.code);
+  }
+
   return {
     cost,
     typeCode,
@@ -305,6 +385,7 @@ function getFilters() {
     classLabel,
     gods: [...gods].sort(),
     tagStates,
+    miscTags: [...miscTagsOnCard].sort(),
     dedupe,
   };
 }
@@ -317,6 +398,7 @@ function filtersSignature(f) {
     classCode: f.classCode,
     gods: f.gods,
     tagStates: f.tagStates,
+    miscTags: f.miscTags ?? [],
     dedupe: f.dedupe,
   });
 }
@@ -328,6 +410,13 @@ function filtersSummary(f) {
     .filter(([, v]) => v !== "무관")
     .map(([k, v]) => `${k}:${v}`);
   if (tagNotes.length) parts.push(tagNotes.join(","));
+  const misc = f.miscTags ?? [];
+  if (misc.length) {
+    const labels = misc
+      .map((c) => resolveMiscTags(bundle?.meta).find((t) => t.code === c)?.label ?? c)
+      .join("+");
+    parts.push(`기타:${labels}`);
+  }
   if (f.gods.length && bundle && f.gods.length < bundle.meta.god_order.length) {
     const labels = f.gods
       .map((c) => bundle.meta.gods.find((g) => g.code === c)?.label ?? c)
@@ -585,6 +674,14 @@ function applyFilters(filters) {
 
   const dedupeEl = /** @type {HTMLInputElement} */ (document.getElementById("dedupe"));
   if (dedupeEl) dedupeEl.checked = !!filters.dedupe;
+
+  const miscSet = new Set(filters.miscTags ?? []);
+  for (const tag of resolveMiscTags(bundle?.meta)) {
+    const el = /** @type {HTMLInputElement} */ (
+      document.getElementById(`misc-tag-${tag.code}`)
+    );
+    if (el) el.checked = miscSet.has(tag.code);
+  }
 }
 
 function renderHistoryPanel() {
@@ -741,7 +838,9 @@ function matchEntry(e, f) {
     if (state === "포함" && e[`ban_${code}`]) return false;
     if (state === "없음" && e[`req_${code}`]) return false;
   }
-  return true;
+
+  const miscSet = new Set(f.miscTags ?? []);
+  return passesMiscTagFilter(e, miscSet);
 }
 
 function loadVisibleColumns() {
@@ -1199,8 +1298,12 @@ function buildUI(meta) {
       const el = document.querySelector(`input[name="tag-${tag.code}"][value="무관"]`);
       if (el) /** @type {HTMLInputElement} */ (el).checked = true;
     }
+    for (const el of document.querySelectorAll("#misc-tag-rows input[type=checkbox]")) {
+      /** @type {HTMLInputElement} */ (el).checked = false;
+    }
     refresh();
   });
+  buildMiscTagRows(meta);
   document.getElementById("dedupe").addEventListener("change", refresh);
   document.getElementById("mode-help").addEventListener("click", () =>
     showHelp("런 모드", RUN_MODE_HELP)
@@ -1252,7 +1355,7 @@ function buildGodLegend(meta) {
   el.appendChild(note);
 }
 
-const LOOKUP_DATA_V = 3;
+const LOOKUP_DATA_V = 4;
 
 async function loadData() {
   const res = await fetch(`data/lookup.json?v=${LOOKUP_DATA_V}`, { cache: "no-cache" });
