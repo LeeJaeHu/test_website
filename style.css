@@ -622,6 +622,26 @@ label.inline {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
+.picker-spark-section.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
+.picker-spark-section.is-disabled .hint::after {
+  content: " (현재 선택과 함께 사용할 수 없음)";
+}
+
+.picker-common-effect {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.68rem;
+  font-style: normal;
+  line-height: 1.4;
+  color: var(--text);
+  opacity: 0.9;
+}
+
 .picker-spark-section {
   margin-top: 0.85rem;
 }

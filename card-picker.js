@@ -78,12 +78,36 @@ function cardMetaLine(card) {
   return [ `${cost}코`, typeShort(card.type), tags ].filter(Boolean).join(" · ");
 }
 
-function cardDescText(card, uniqueSpark) {
-  if (uniqueSpark?.description) return uniqueSpark.description;
+function cardDescText(card, uniqueSpark, commonSparkId) {
+  if (uniqueSpark) {
+    const result = cardsById.get(uniqueSpark.result_id) ?? card;
+    return uniqueSpark.description || result.description || uniqueSpark.summary || cardMetaLine(result);
+  }
+  if (commonSparkId && commonSparks[commonSparkId]) {
+    const cs = commonSparks[commonSparkId];
+    const base = card.description || card.name;
+    return cs.description ? `${base} + ${cs.description}` : base;
+  }
   if (card.description) return card.description;
-  if (uniqueSpark?.summary) return uniqueSpark.summary;
   const tags = formatTagList(card);
   return tags || "설명 없음";
+}
+
+function resolvedPickerCard(baseCard, uniqueSpark, commonSparkId) {
+  if (uniqueSpark?.result_id) {
+    return cardsById.get(uniqueSpark.result_id) ?? baseCard;
+  }
+  return baseCard;
+}
+
+function previewHeadline(baseCard, uniqueSpark, commonSparkId) {
+  if (uniqueSpark) {
+    return `${baseCard.name} — ${uniqueSpark.label || "고유"}`;
+  }
+  if (commonSparkId && commonSparks[commonSparkId]) {
+    return `${baseCard.name} — 일반 번뜩임`;
+  }
+  return baseCard.name;
 }
 
 function cardTileHtml(card, { headline, subline, descText, compact = false } = {}) {
@@ -91,7 +115,10 @@ function cardTileHtml(card, { headline, subline, descText, compact = false } = {
   const cls = cardTypeClass(card.type);
   const title = headline ?? card.name;
   const meta = subline ?? cardMetaLine(card);
-  const desc = descText ?? cardDescText(card);
+  const desc =
+    descText != null && String(descText).trim() !== ""
+      ? descText
+      : cardDescText(card);
   const descClass = compact ? "picker-card-desc picker-card-desc-compact" : "picker-card-desc";
   return `<article class="picker-card-tile ${cls}" data-card-id="${escapeHtml(card.id)}" title="${escapeHtml(desc)}">
     <div class="picker-card-head">
@@ -110,7 +137,10 @@ function cardTileButtonHtml(card, { headline, subline, descText, selected = fals
   const cls = cardTypeClass(card.type);
   const title = headline ?? card.name;
   const meta = subline ?? cardMetaLine(card);
-  const desc = descText ?? cardDescText(card);
+  const desc =
+    descText != null && String(descText).trim() !== ""
+      ? descText
+      : cardDescText(card);
   return `<button type="button" class="picker-card-tile picker-card-tile-btn ${cls} ${extraClass}${selected ? " is-selected" : ""}" title="${escapeHtml(desc)}">
     <div class="picker-card-head">
       <span class="picker-card-cost">${cost}</span>
@@ -134,30 +164,76 @@ export async function loadCardsBundle() {
 }
 
 export function resolveCardFilterPatch(baseCard, uniqueSpark, commonSparkId, meta, helpers) {
+  const hasUnique = !!(uniqueSpark?.result_id);
   let card = baseCard;
-  if (uniqueSpark?.result_id) {
+  let appliedCommon = null;
+
+  if (hasUnique) {
     card = cardsById.get(uniqueSpark.result_id) ?? baseCard;
+  } else if (commonSparkId && commonSparks[commonSparkId]) {
+    appliedCommon = commonSparkId;
   }
+
   const patch = cardToFilterPatch(card, meta, helpers);
-  if (commonSparkId && commonSparks[commonSparkId]) {
-    const delta = commonSparks[commonSparkId].cost_delta ?? 0;
-    const raw = card.cost + delta;
+  if (appliedCommon) {
+    const delta = commonSparks[appliedCommon].cost_delta ?? 0;
+    const raw = baseCard.cost + delta;
     patch.cost = Math.max(0, Math.min(4, raw));
   }
-  return { patch, card, baseCard, uniqueSpark, commonSparkId };
+  return {
+    patch,
+    card,
+    baseCard,
+    uniqueSpark: hasUnique ? uniqueSpark : null,
+    commonSparkId: appliedCommon,
+  };
 }
 
 function buildStatusLabel(result) {
-  const parts = [result.card.name];
+  const parts = [result.baseCard?.name ?? result.card.name];
   if (result.uniqueSpark) {
-    parts.push(`고유: ${result.uniqueSpark.label || result.uniqueSpark.summary || result.uniqueSpark.id}`);
-  }
-  if (result.commonSparkId && commonSparks[result.commonSparkId]) {
-    const cs = commonSparks[result.commonSparkId];
-    parts.push(`일반: ${cs.description.slice(0, 24)}`);
+    parts.push(`고유: ${result.uniqueSpark.label || result.uniqueSpark.id}`);
+  } else if (result.commonSparkId && commonSparks[result.commonSparkId]) {
+    parts.push(`일반: ${commonSparks[result.commonSparkId].description.slice(0, 32)}`);
   }
   parts.push(`${result.patch.cost}코`);
   return parts.join(" · ");
+}
+
+function previewCardState(baseCard, uniqueSpark, commonSparkId) {
+  const card = resolvedPickerCard(baseCard, uniqueSpark, commonSparkId);
+  if (!uniqueSpark && commonSparkId && commonSparks[commonSparkId]) {
+    const delta = commonSparks[commonSparkId].cost_delta ?? 0;
+    const cost = Math.max(0, Math.min(4, baseCard.cost + delta));
+    return { ...card, cost, filter_cost: cost };
+  }
+  return card;
+}
+
+function updateSparkPreview() {
+  const preview = document.getElementById("card-spark-preview");
+  const base = pickerCtx?.selectedBase;
+  if (!preview || !base) return;
+
+  const unique = pickerCtx.selectedUnique;
+  const commonId = pickerCtx.selectedCommon;
+  const displayCard = previewCardState(base, unique, commonId);
+  const desc = cardDescText(base, unique, commonId);
+
+  preview.innerHTML = cardTileHtml(displayCard, {
+    headline: previewHeadline(base, unique, commonId),
+    subline: cardMetaLine(displayCard),
+    descText: desc,
+    compact: false,
+  });
+}
+
+function setSparkSectionEnabled(section, enabled) {
+  if (!section) return;
+  section.classList.toggle("is-disabled", !enabled);
+  section.querySelectorAll("button").forEach((btn) => {
+    btn.disabled = !enabled;
+  });
 }
 
 function pickerCardsForCombatant(combatantId) {
@@ -242,15 +318,19 @@ function showSparkStep(baseCard) {
   pickerCtx.selectedBase = baseCard;
   pickerCtx.selectedUnique = null;
   pickerCtx.selectedCommon = null;
+  pickerCtx.uniqueSection = null;
+  pickerCtx.commonSection = null;
+  pickerCtx.commonGrid = null;
+  pickerCtx.uniqueGrid = null;
 
   const preview = document.createElement("div");
+  preview.id = "card-spark-preview";
   preview.className = "picker-spark-preview";
-  preview.innerHTML = cardTileHtml(baseCard, { compact: false });
   body.appendChild(preview);
 
   const uniqueSection = document.createElement("section");
   uniqueSection.className = "picker-spark-section";
-  uniqueSection.innerHTML = `<h4>고유 번뜩임</h4><p class="hint">변형별 카드 효과 설명입니다. 요약(코스트·태그 변화)도 함께 표시됩니다.</p>`;
+  uniqueSection.innerHTML = `<h4>고유 번뜩임</h4><p class="hint">카드 효과·타입이 바뀝니다. 고유를 선택하면 일반 번뜩임은 적용할 수 없습니다.</p>`;
   const uniqueGrid = document.createElement("div");
   uniqueGrid.className = "picker-grid picker-card-grid picker-spark-card-grid";
 
@@ -258,8 +338,9 @@ function showSparkStep(baseCard) {
     (() => {
       const el = document.createElement("div");
       el.innerHTML = cardTileButtonHtml(baseCard, {
-        headline: "원본",
-        descText: cardDescText(baseCard),
+        headline: "원본 (일반 번뜩임 가능)",
+        subline: cardMetaLine(baseCard),
+        descText: baseCard.description || cardDescText(baseCard),
         selected: true,
         extraClass: "spark-tile-base",
       });
@@ -272,11 +353,12 @@ function showSparkStep(baseCard) {
 
   for (const u of baseCard.unique ?? []) {
     const result = cardsById.get(u.result_id) ?? baseCard;
-    const desc = u.description || result.description || u.summary || "";
+    const desc =
+      u.description || result.description || u.summary || cardDescText(result);
     const el = document.createElement("div");
     el.innerHTML = cardTileButtonHtml(result, {
       headline: u.label || "고유",
-      subline: u.summary && u.summary !== desc ? u.summary : cardMetaLine(result),
+      subline: cardMetaLine(result),
       descText: desc,
       extraClass: "spark-tile-unique",
     });
@@ -290,7 +372,7 @@ function showSparkStep(baseCard) {
 
   const commonSection = document.createElement("section");
   commonSection.className = "picker-spark-section";
-  commonSection.innerHTML = `<h4>일반 번뜩임</h4><p class="hint">이 카드에 부여 가능한 일반 번뜩임 (${(baseCard.commons ?? []).length}종)</p>`;
+  commonSection.innerHTML = `<h4>일반 번뜩임</h4><p class="hint">원본 카드 효과에 추가됩니다. 일반을 선택하면 고유 번뜩임은 적용할 수 없습니다. (${(baseCard.commons ?? []).length}종)</p>`;
   const commonGrid = document.createElement("div");
   commonGrid.className = "picker-spark-list";
 
@@ -315,12 +397,21 @@ function showSparkStep(baseCard) {
         : cs.cost_delta > 0
           ? `코스트 +${cs.cost_delta}`
           : "";
-    btn.innerHTML = `<strong>${escapeHtml(cs.description || sid)}</strong><span>${escapeHtml([delta, sid].filter(Boolean).join(" · "))}</span>`;
+    const combined =
+      baseCard.description && cs.description
+        ? `${baseCard.description} + ${cs.description}`
+        : cs.description || sid;
+    btn.innerHTML = `<strong>${escapeHtml(cs.description || sid)}</strong><span>${escapeHtml([delta, sid].filter(Boolean).join(" · "))}</span><em class="picker-common-effect">${escapeHtml(combined)}</em>`;
     btn.addEventListener("click", () => selectCommon(sid, commonGrid));
     commonGrid.appendChild(btn);
   }
   commonSection.appendChild(commonGrid);
   body.appendChild(commonSection);
+
+  pickerCtx.uniqueSection = uniqueSection;
+  pickerCtx.commonSection = commonSection;
+  pickerCtx.commonGrid = commonGrid;
+  pickerCtx.uniqueGrid = uniqueGrid;
 
   const actions = document.createElement("div");
   actions.className = "picker-spark-actions";
@@ -332,24 +423,54 @@ function showSparkStep(baseCard) {
   actions.appendChild(applyBtn);
   body.appendChild(actions);
 
+  updateSparkPreview();
+  syncSparkSectionState();
+
   setPickerTitle(`${baseCard.name} — 카드 번뜩임`);
   setPickerBack(() => showCardStep(pickerCtx.currentCombatant));
 }
 
+function syncSparkSectionState() {
+  const hasUnique = !!pickerCtx.selectedUnique;
+  const hasCommon = !!pickerCtx.selectedCommon;
+  setSparkSectionEnabled(pickerCtx.commonSection, !hasUnique);
+  setSparkSectionEnabled(pickerCtx.uniqueSection, !hasCommon);
+}
+
 function selectUnique(unique, grid) {
   pickerCtx.selectedUnique = unique;
+  if (unique) {
+    pickerCtx.selectedCommon = null;
+    if (pickerCtx.commonGrid) {
+      pickerCtx.commonGrid.querySelectorAll(".picker-common-item").forEach((el) => {
+        el.classList.toggle("is-selected", el.dataset.sparkId === "__none__");
+      });
+    }
+  }
   grid.querySelectorAll(".picker-card-tile-btn").forEach((el) => {
     const sid = el.dataset.sparkId;
     el.classList.toggle("is-selected", unique ? sid === unique.id : sid === "__base__");
   });
+  syncSparkSectionState();
+  updateSparkPreview();
 }
 
 function selectCommon(commonId, grid) {
   pickerCtx.selectedCommon = commonId;
+  if (commonId) {
+    pickerCtx.selectedUnique = null;
+    if (pickerCtx.uniqueGrid) {
+      pickerCtx.uniqueGrid.querySelectorAll(".picker-card-tile-btn").forEach((el) => {
+        el.classList.toggle("is-selected", el.dataset.sparkId === "__base__");
+      });
+    }
+  }
   grid.querySelectorAll(".picker-common-item").forEach((el) => {
     const sid = el.dataset.sparkId;
     el.classList.toggle("is-selected", commonId ? sid === commonId : sid === "__none__");
   });
+  syncSparkSectionState();
+  updateSparkPreview();
 }
 
 function applySparkSelection() {
@@ -368,7 +489,14 @@ function applySparkSelection() {
   const status = document.getElementById("card-search-status");
   if (status) status.textContent = `적용: ${buildStatusLabel(result)}`;
   const input = /** @type {HTMLInputElement|null} */ (document.getElementById("card-search-input"));
-  if (input) input.value = result.card.name;
+  if (input) {
+    const label = result.uniqueSpark
+      ? `${result.baseCard.name} (${result.uniqueSpark.label || "고유"})`
+      : result.commonSparkId
+        ? `${result.baseCard.name} (일반)`
+        : result.card.name;
+    input.value = label;
+  }
   closePickerDialog();
 }
 
