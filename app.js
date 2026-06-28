@@ -1,8 +1,8 @@
 /** @typedef {{ code: string|null, label: string }} Option */
 /** @typedef {{ code: string, label: string, label_en: string }} GodMeta */
 
-import { initCardSearch } from "./card-search.js";
-import { initCardPicker } from "./card-picker.js";
+import { initCardSearch } from "./card-search.js?v=7";
+import { initCardPicker } from "./card-picker.js?v=7";
 
 const RUN_MODE_HELP =
   "런 모드 = 이번 플레이가 어떤 신 번뜩임 풀을 쓰는지\n" +

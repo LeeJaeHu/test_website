@@ -1,4 +1,4 @@
-import { cardToFilterPatch, CARDS_DATA_V } from "./card-search.js";
+import { cardToFilterPatch, CARDS_DATA_V } from "./card-search.js?v=7";
 
 /** @typedef {{ id: number, name: string, card_count: number }} Combatant */
 /** @typedef {{ id: string, result_id: string, kind: string, label?: string, summary?: string, description?: string, name?: string }} UniqueSpark */
@@ -8,6 +8,8 @@ import { cardToFilterPatch, CARDS_DATA_V } from "./card-search.js";
 let bundle = null;
 /** @type {Map<string, PickerCard>} */
 let cardsById = new Map();
+/** @type {Map<string, string>} */
+let descriptionsById = new Map();
 /** @type {Record<string, CommonSpark>} */
 let commonSparks = {};
 
@@ -78,19 +80,60 @@ function cardMetaLine(card) {
   return [ `${cost}코`, typeShort(card.type), tags ].filter(Boolean).join(" · ");
 }
 
-function cardDescText(card, uniqueSpark, commonSparkId) {
-  if (uniqueSpark) {
-    const result = cardsById.get(uniqueSpark.result_id) ?? card;
-    return uniqueSpark.description || result.description || uniqueSpark.summary || cardMetaLine(result);
+function rebuildCardLookups() {
+  cardsById = new Map();
+  descriptionsById = new Map();
+  for (const c of bundle?.cards ?? []) {
+    cardsById.set(c.id, c);
+    if (c.description) descriptionsById.set(c.id, c.description);
+    for (const u of c.unique ?? []) {
+      const text =
+        u.description ||
+        descriptionsById.get(u.result_id) ||
+        cardsById.get(u.result_id)?.description ||
+        "";
+      if (text) descriptionsById.set(u.result_id, text);
+    }
+  }
+}
+
+function lookupCardDescription(cardId, ...fallbacks) {
+  const cached = descriptionsById.get(cardId);
+  if (cached) return cached;
+  const card = cardsById.get(cardId);
+  if (card?.description) return card.description;
+  for (const fb of fallbacks) {
+    if (fb) return String(fb);
+  }
+  return "";
+}
+
+function getSparkSelectionDescription(baseCard, uniqueSpark, commonSparkId) {
+  if (uniqueSpark?.result_id) {
+    const result = cardsById.get(uniqueSpark.result_id) ?? baseCard;
+    const text = lookupCardDescription(
+      uniqueSpark.result_id,
+      uniqueSpark.description,
+      result.description,
+      uniqueSpark.summary
+    );
+    return text || cardMetaLine(result);
   }
   if (commonSparkId && commonSparks[commonSparkId]) {
     const cs = commonSparks[commonSparkId];
-    const base = card.description || card.name;
+    const base = lookupCardDescription(baseCard.id, baseCard.description) || baseCard.name;
     return cs.description ? `${base} + ${cs.description}` : base;
   }
-  if (card.description) return card.description;
-  const tags = formatTagList(card);
-  return tags || "설명 없음";
+  const text = lookupCardDescription(baseCard.id, baseCard.description);
+  return text || cardMetaLine(baseCard);
+}
+
+function cardDescText(card, uniqueSpark, commonSparkId) {
+  if (uniqueSpark || commonSparkId) {
+    return getSparkSelectionDescription(card, uniqueSpark, commonSparkId);
+  }
+  const text = lookupCardDescription(card.id, card.description);
+  return text || cardMetaLine(card);
 }
 
 function resolvedPickerCard(baseCard, uniqueSpark, commonSparkId) {
@@ -118,7 +161,7 @@ function cardTileHtml(card, { headline, subline, descText, compact = false } = {
   const desc =
     descText != null && String(descText).trim() !== ""
       ? descText
-      : cardDescText(card);
+      : lookupCardDescription(card.id) || cardMetaLine(card);
   const descClass = compact ? "picker-card-desc picker-card-desc-compact" : "picker-card-desc";
   return `<article class="picker-card-tile ${cls}" data-card-id="${escapeHtml(card.id)}" title="${escapeHtml(desc)}">
     <div class="picker-card-head">
@@ -140,7 +183,7 @@ function cardTileButtonHtml(card, { headline, subline, descText, selected = fals
   const desc =
     descText != null && String(descText).trim() !== ""
       ? descText
-      : cardDescText(card);
+      : lookupCardDescription(card.id) || cardMetaLine(card);
   return `<button type="button" class="picker-card-tile picker-card-tile-btn ${cls} ${extraClass}${selected ? " is-selected" : ""}" title="${escapeHtml(desc)}">
     <div class="picker-card-head">
       <span class="picker-card-cost">${cost}</span>
@@ -153,12 +196,13 @@ function cardTileButtonHtml(card, { headline, subline, descText, selected = fals
   </button>`;
 }
 
-export async function loadCardsBundle() {
-  if (bundle) return bundle;
-  const res = await fetch(`data/cards.json?v=${CARDS_DATA_V}`, { cache: "no-cache" });
+export async function loadCardsBundle(force = false) {
+  if (bundle && !force) return bundle;
+  bundle = null;
+  const res = await fetch(`data/cards.json?v=${CARDS_DATA_V}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   bundle = await res.json();
-  cardsById = new Map((bundle.cards ?? []).map((c) => [c.id, c]));
+  rebuildCardLookups();
   commonSparks = bundle.common_sparks ?? {};
   return bundle;
 }
@@ -218,7 +262,7 @@ function updateSparkPreview() {
   const unique = pickerCtx.selectedUnique;
   const commonId = pickerCtx.selectedCommon;
   const displayCard = previewCardState(base, unique, commonId);
-  const desc = cardDescText(base, unique, commonId);
+  const desc = getSparkSelectionDescription(base, unique, commonId);
 
   preview.innerHTML = cardTileHtml(displayCard, {
     headline: previewHeadline(base, unique, commonId),
@@ -353,8 +397,7 @@ function showSparkStep(baseCard) {
 
   for (const u of baseCard.unique ?? []) {
     const result = cardsById.get(u.result_id) ?? baseCard;
-    const desc =
-      u.description || result.description || u.summary || cardDescText(result);
+    const desc = getSparkSelectionDescription(baseCard, u, null);
     const el = document.createElement("div");
     el.innerHTML = cardTileButtonHtml(result, {
       headline: u.label || "고유",
@@ -516,7 +559,7 @@ function closePickerDialog() {
   if (dlg?.open) dlg.close();
 }
 
-export function openSparkPickerForCard(cardId, ctx) {
+export async function openSparkPickerForCard(cardId, ctx) {
   pickerCtx = {
     ...ctx,
     sharedSources: new Set(["public", "etc", "encounter", "disaster", "monster", "partner", "eidolon", "assault"]),
@@ -526,6 +569,13 @@ export function openSparkPickerForCard(cardId, ctx) {
     selectedCommon: null,
     backHandler: null,
   };
+  try {
+    await loadCardsBundle(true);
+  } catch (err) {
+    const status = document.getElementById("card-search-status");
+    if (status) status.textContent = `카드 목록 로드 실패: ${err?.message ?? err}`;
+    return;
+  }
   let card = cardsById.get(cardId);
   if (!card) return;
   if (card.is_spark_result) {
@@ -544,7 +594,7 @@ export function openSparkPickerForCard(cardId, ctx) {
   if (!dlg.open) dlg.showModal();
 }
 
-export function openCardPickerDialog(ctx) {
+export async function openCardPickerDialog(ctx) {
   pickerCtx = {
     ...ctx,
     sharedSources: new Set(["public", "etc", "encounter", "disaster", "monster", "partner", "eidolon", "assault"]),
@@ -554,6 +604,13 @@ export function openCardPickerDialog(ctx) {
     selectedCommon: null,
     backHandler: null,
   };
+  try {
+    await loadCardsBundle(true);
+  } catch (err) {
+    const status = document.getElementById("card-search-status");
+    if (status) status.textContent = `카드 목록 로드 실패: ${err?.message ?? err}`;
+    return;
+  }
   const body = document.getElementById("card-picker-body");
   const dlg = /** @type {HTMLDialogElement|null} */ (document.getElementById("card-picker-dialog"));
   if (!body || !dlg) return;
@@ -564,6 +621,12 @@ export function openCardPickerDialog(ctx) {
 export async function initCardPicker(options) {
   try {
     await loadCardsBundle();
+    const withDesc = (bundle?.cards ?? []).filter((c) => c.description).length;
+    const status = document.getElementById("card-search-status");
+    if (status && withDesc < 100) {
+      status.textContent =
+        "카드 효과 설명이 없습니다. 프로젝트 루트에서 python export_web_data.py 실행 후 새로고침하세요.";
+    }
   } catch (err) {
     const status = document.getElementById("card-search-status");
     if (status) status.textContent = `카드 목록 로드 실패: ${err?.message ?? err}`;
@@ -577,7 +640,9 @@ export async function initCardPicker(options) {
   };
 
   const openBtn = document.getElementById(options.openButtonId);
-  openBtn?.addEventListener("click", () => openCardPickerDialog(ctx));
+  openBtn?.addEventListener("click", () => {
+    void openCardPickerDialog(ctx);
+  });
 
   const backBtn = document.getElementById("card-picker-back");
   backBtn?.addEventListener("click", () => {

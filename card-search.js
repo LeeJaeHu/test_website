@@ -1,6 +1,6 @@
 /** @typedef {{ id: string, name: string, name_key?: string, description?: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], exhaust?: boolean, source?: string }} CardCatalogEntry */
 
-export const CARDS_DATA_V = 6;
+export const CARDS_DATA_V = 7;
 
 /** @param {CardCatalogEntry} card @param {object} meta @param {{ resolveMiscTags: (meta: object) => { code: string }[] }} helpers */
 export function cardToFilterPatch(card, meta, helpers) {
@@ -92,7 +92,7 @@ export async function initCardSearch(options) {
   let index = [];
 
   try {
-    const res = await fetch(`data/cards.json?v=${CARDS_DATA_V}`, { cache: "no-cache" });
+    const res = await fetch(`data/cards.json?v=${CARDS_DATA_V}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     cards = Array.isArray(data.cards) ? data.cards : [];

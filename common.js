@@ -1,5 +1,5 @@
-import { initCardSearch } from "./card-search.js";
-import { initCardPicker } from "./card-picker.js";
+import { initCardSearch } from "./card-search.js?v=7";
+import { initCardPicker } from "./card-picker.js?v=7";
 
 const TAG_STATE_HELP =
   "태그 선택 안내\n" +
