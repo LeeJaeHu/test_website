@@ -48,10 +48,15 @@ pip install openpyxl
 python export_web_data.py
 ```
 
-생성된 `web/data/*.json`과 (선택) `web/assets/portraits/`를 commit & push.
+생성된 `web/data/*.json`을 commit & push.
 
-**용량 참고:** `export_web_data.py`는 GitHub용으로 초상화를 128px webp 썸네일(~2KB/장)로 만듭니다.  
-`web/` 전체는 약 **2MB** 수준이면 Pages에 무리 없습니다. 게임 `bin/`·`data.pack` 등은 **push하지 마세요**.
+**용량 참고:** `cards.json`에 카드 효과 설명이 포함되어 약 **1.3MB**입니다. 초상화 이미지는 사용하지 않으므로 GitHub Pages에 무리 없습니다. 게임 `bin/`·`data.pack` 등은 **push하지 마세요**.
+
+## 카드 선택 UI
+
+- **목록에서 선택**: 캐릭터 → 카드 → 고유·일반 번뜩임 (카드 **효과 설명** 텍스트 표시)
+- **포함 캐릭터**: 게임 `card.db`에 **플레이어블 덱 카드**가 있는 **28명 전원** (누락 없음)
+- **제외**: `text.db`에 이름만 있고 덱 카드가 없는 NPC·적 등 (~98명)은 의도적으로 제외
 
 ## 로컬 미리보기
 
@@ -74,8 +79,7 @@ python -m http.server 8080
 | `common.js` | 일반 번뜩임 필터·목록 |
 | `style.css` | 스타일 |
 | `data/lookup.json` | 신 번뜩임 데이터 (`export_web_data.py` 생성) |
-| `data/cards.json` | 카드·캐릭터·번뜩임 선택 데이터 (`export_web_data.py` 생성) |
-| `assets/portraits/` | 캐릭터 썸네일 (선택, export 시 생성) |
+| `data/cards.json` | 카드·캐릭터·번뜩임 선택 데이터 (`export_web_data.py` 생성, 효과 설명 포함) |
 | `.nojekyll` | GitHub Pages Jekyll 비활성 |
 
 ## 면책

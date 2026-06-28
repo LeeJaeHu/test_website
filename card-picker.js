@@ -1,8 +1,8 @@
 import { cardToFilterPatch, CARDS_DATA_V } from "./card-search.js";
 
-/** @typedef {{ id: number, name: string, portrait: string, card_count: number }} Combatant */
-/** @typedef {{ id: string, result_id: string, kind: string, label?: string, summary?: string, name?: string }} UniqueSpark */
-/** @typedef {{ id: string, name: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], exhaust?: boolean, combatant_id?: number|null, sct_name?: string, unique?: UniqueSpark[], commons?: string[], is_spark_result?: boolean }} PickerCard */
+/** @typedef {{ id: number, name: string, card_count: number }} Combatant */
+/** @typedef {{ id: string, result_id: string, kind: string, label?: string, summary?: string, description?: string, name?: string }} UniqueSpark */
+/** @typedef {{ id: string, name: string, description?: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], talents?: string[], exhaust?: boolean, combatant_id?: number|null, unique?: UniqueSpark[], commons?: string[], is_spark_result?: boolean }} PickerCard */
 /** @typedef {{ id: string, description: string, cost_delta: number, weight?: number }} CommonSpark */
 
 let bundle = null;
@@ -47,7 +47,7 @@ function formatTagList(card) {
   if (card.exhaust && !card.tags?.includes("exhaust")) {
     parts.push("소멸");
   }
-  return parts.length ? parts.join(", ") : "태그 없음";
+  return parts.length ? parts.join(", ") : "";
 }
 
 const TAG_LABELS = {
@@ -72,35 +72,54 @@ const TAG_LABELS = {
   ep: "에너지 PT",
 };
 
-function cardTileHtml(card, { compact = false, headline, subline } = {}) {
+function cardMetaLine(card) {
+  const cost = card.filter_cost ?? card.cost;
+  const tags = formatTagList(card);
+  return [ `${cost}코`, typeShort(card.type), tags ].filter(Boolean).join(" · ");
+}
+
+function cardDescText(card, uniqueSpark) {
+  if (uniqueSpark?.description) return uniqueSpark.description;
+  if (card.description) return card.description;
+  if (uniqueSpark?.summary) return uniqueSpark.summary;
+  const tags = formatTagList(card);
+  return tags || "설명 없음";
+}
+
+function cardTileHtml(card, { headline, subline, descText, compact = false } = {}) {
   const cost = card.filter_cost ?? card.cost;
   const cls = cardTypeClass(card.type);
   const title = headline ?? card.name;
-  const sub =
-    subline ??
-    (compact
-      ? `${cost}코 · ${typeShort(card.type)}`
-      : `${cost}코 · ${typeShort(card.type)} · ${formatTagList(card)}`);
-  return `<article class="picker-card-tile ${cls}" data-card-id="${escapeHtml(card.id)}" title="${escapeHtml(card.name)}">
-    <div class="picker-card-art" aria-hidden="true"><span class="picker-card-cost">${cost}</span></div>
-    <div class="picker-card-caption">
-      <strong>${escapeHtml(title)}</strong>
-      <span>${escapeHtml(sub)}</span>
+  const meta = subline ?? cardMetaLine(card);
+  const desc = descText ?? cardDescText(card);
+  const descClass = compact ? "picker-card-desc picker-card-desc-compact" : "picker-card-desc";
+  return `<article class="picker-card-tile ${cls}" data-card-id="${escapeHtml(card.id)}" title="${escapeHtml(desc)}">
+    <div class="picker-card-head">
+      <span class="picker-card-cost">${cost}</span>
+      <div class="picker-card-head-text">
+        <strong>${escapeHtml(title)}</strong>
+        <span class="picker-card-meta">${escapeHtml(meta)}</span>
+      </div>
     </div>
+    <p class="${descClass}">${escapeHtml(desc)}</p>
   </article>`;
 }
 
-function cardTileButtonHtml(card, { headline, subline, selected = false, extraClass = "" }) {
+function cardTileButtonHtml(card, { headline, subline, descText, selected = false, extraClass = "" }) {
   const cost = card.filter_cost ?? card.cost;
   const cls = cardTypeClass(card.type);
   const title = headline ?? card.name;
-  const sub = subline ?? `${cost}코 · ${typeShort(card.type)} · ${formatTagList(card)}`;
-  return `<button type="button" class="picker-card-tile picker-card-tile-btn ${cls} ${extraClass}${selected ? " is-selected" : ""}" title="${escapeHtml(sub)}">
-    <div class="picker-card-art" aria-hidden="true"><span class="picker-card-cost">${cost}</span></div>
-    <div class="picker-card-caption">
-      <strong>${escapeHtml(title)}</strong>
-      <span>${escapeHtml(sub)}</span>
+  const meta = subline ?? cardMetaLine(card);
+  const desc = descText ?? cardDescText(card);
+  return `<button type="button" class="picker-card-tile picker-card-tile-btn ${cls} ${extraClass}${selected ? " is-selected" : ""}" title="${escapeHtml(desc)}">
+    <div class="picker-card-head">
+      <span class="picker-card-cost">${cost}</span>
+      <div class="picker-card-head-text">
+        <strong>${escapeHtml(title)}</strong>
+        <span class="picker-card-meta">${escapeHtml(meta)}</span>
+      </div>
     </div>
+    <p class="picker-card-desc">${escapeHtml(desc)}</p>
   </button>`;
 }
 
@@ -114,11 +133,6 @@ export async function loadCardsBundle() {
   return bundle;
 }
 
-/**
- * @param {PickerCard} baseCard
- * @param {UniqueSpark|null} uniqueSpark
- * @param {string|null} commonSparkId
- */
 export function resolveCardFilterPatch(baseCard, uniqueSpark, commonSparkId, meta, helpers) {
   let card = baseCard;
   if (uniqueSpark?.result_id) {
@@ -160,13 +174,20 @@ function pickerCardsForCombatant(combatantId) {
 
 function renderCharacterStep(body) {
   body.replaceChildren();
+
+  const note = document.createElement("p");
+  note.className = "hint picker-scope-note";
+  const n = bundle?.combatant_count ?? bundle?.combatants?.length ?? 0;
+  note.textContent = `플레이어블 덱이 있는 캐릭터 ${n}명 (게임 card.db 기준 전체). NPC·적 전용 등은 포함되지 않습니다.`;
+  body.appendChild(note);
+
   const grid = document.createElement("div");
   grid.className = "picker-grid picker-char-grid";
 
   const sharedBtn = document.createElement("button");
   sharedBtn.type = "button";
   sharedBtn.className = "picker-char-tile picker-char-shared";
-  sharedBtn.innerHTML = `<span class="picker-char-art" aria-hidden="true">공</span><strong>공용</strong><span>${bundle?.shared_card_count ?? 0}장</span>`;
+  sharedBtn.innerHTML = `<strong>공용</strong><span>${bundle?.shared_card_count ?? 0}장</span><span class="picker-char-sub">공용·특수 카드</span>`;
   sharedBtn.addEventListener("click", () => showCardStep(null));
   grid.appendChild(sharedBtn);
 
@@ -175,23 +196,7 @@ function renderCharacterStep(body) {
     btn.type = "button";
     btn.className = "picker-char-tile";
     btn.dataset.combatantId = String(ch.id);
-    const img = document.createElement("img");
-    img.className = "picker-char-portrait";
-    img.alt = "";
-    img.loading = "lazy";
-    img.src = ch.portrait;
-    img.onerror = () => {
-      img.remove();
-      const ph = document.createElement("span");
-      ph.className = "picker-char-art";
-      ph.textContent = ch.name.slice(0, 1);
-      btn.prepend(ph);
-    };
-    btn.append(img);
-    const cap = document.createElement("div");
-    cap.className = "picker-char-caption";
-    cap.innerHTML = `<strong>${escapeHtml(ch.name)}</strong><span>${ch.card_count}장</span>`;
-    btn.appendChild(cap);
+    btn.innerHTML = `<strong>${escapeHtml(ch.name)}</strong><span>${ch.card_count}장</span>`;
     btn.addEventListener("click", () => showCardStep(ch.id));
     grid.appendChild(btn);
   }
@@ -240,15 +245,12 @@ function showSparkStep(baseCard) {
 
   const preview = document.createElement("div");
   preview.className = "picker-spark-preview";
-  preview.innerHTML = cardTileHtml(baseCard, {
-    compact: true,
-    subline: `${baseCard.filter_cost ?? baseCard.cost}코 · ${typeShort(baseCard.type)} · ${formatTagList(baseCard)}`,
-  });
+  preview.innerHTML = cardTileHtml(baseCard, { compact: false });
   body.appendChild(preview);
 
   const uniqueSection = document.createElement("section");
   uniqueSection.className = "picker-spark-section";
-  uniqueSection.innerHTML = `<h4>고유 번뜩임</h4><p class="hint">색·코스트·태그로 변화를 확인하세요. 이름이 없는 변형은 요약으로 표시됩니다.</p>`;
+  uniqueSection.innerHTML = `<h4>고유 번뜩임</h4><p class="hint">변형별 카드 효과 설명입니다. 요약(코스트·태그 변화)도 함께 표시됩니다.</p>`;
   const uniqueGrid = document.createElement("div");
   uniqueGrid.className = "picker-grid picker-card-grid picker-spark-card-grid";
 
@@ -257,7 +259,7 @@ function showSparkStep(baseCard) {
       const el = document.createElement("div");
       el.innerHTML = cardTileButtonHtml(baseCard, {
         headline: "원본",
-        subline: `${baseCard.filter_cost ?? baseCard.cost}코 · ${typeShort(baseCard.type)} · ${formatTagList(baseCard)}`,
+        descText: cardDescText(baseCard),
         selected: true,
         extraClass: "spark-tile-base",
       });
@@ -270,10 +272,12 @@ function showSparkStep(baseCard) {
 
   for (const u of baseCard.unique ?? []) {
     const result = cardsById.get(u.result_id) ?? baseCard;
+    const desc = u.description || result.description || u.summary || "";
     const el = document.createElement("div");
     el.innerHTML = cardTileButtonHtml(result, {
       headline: u.label || "고유",
-      subline: u.summary || formatTagList(result),
+      subline: [cardMetaLine(result), u.summary].filter(Boolean).join(" · "),
+      descText: desc,
       extraClass: "spark-tile-unique",
     });
     const btn = el.firstElementChild;
@@ -429,13 +433,6 @@ export function openCardPickerDialog(ctx) {
   if (!dlg.open) dlg.showModal();
 }
 
-/**
- * @param {object} options
- * @param {string} options.openButtonId
- * @param {() => object|null} options.getMeta
- * @param {{ resolveMiscTags: Function }} options.helpers
- * @param {(patch: object, result: object) => void} options.onApply
- */
 export async function initCardPicker(options) {
   try {
     await loadCardsBundle();

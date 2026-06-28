@@ -1,6 +1,6 @@
-/** @typedef {{ id: string, name: string, name_key?: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], exhaust?: boolean, source?: string }} CardCatalogEntry */
+/** @typedef {{ id: string, name: string, name_key?: string, description?: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], exhaust?: boolean, source?: string }} CardCatalogEntry */
 
-export const CARDS_DATA_V = 3;
+export const CARDS_DATA_V = 4;
 
 /** @param {CardCatalogEntry} card @param {object} meta @param {{ resolveMiscTags: (meta: object) => { code: string }[] }} helpers */
 export function cardToFilterPatch(card, meta, helpers) {
@@ -149,13 +149,17 @@ export async function initCardSearch(options) {
       btn.type = "button";
       btn.className = "card-search-item";
       btn.dataset.index = String(i);
+      const desc = card.description ? card.description.slice(0, 72) : "";
       const metaLine = [
         `${card.filter_cost ?? card.cost}코`,
         typeShort(card.type),
         card.class ?? "전체 직업",
         card.id,
       ].join(" · ");
-      btn.innerHTML = `<strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(metaLine)}</span>`;
+      const descHtml = desc
+        ? `<em class="card-search-desc">${escapeHtml(desc)}${card.description.length > 72 ? "…" : ""}</em>`
+        : "";
+      btn.innerHTML = `<strong>${escapeHtml(card.name)}</strong><span>${escapeHtml(metaLine)}</span>${descHtml}`;
       btn.addEventListener("mousedown", (ev) => ev.preventDefault());
       btn.addEventListener("click", () => selectCard(card));
       list.appendChild(btn);
