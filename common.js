@@ -1,3 +1,5 @@
+import { initCardSearch } from "./card-search.js";
+
 const TAG_STATE_HELP =
   "태그 선택 안내\n" +
   "· 무관: 이 태그는 조건에 쓰지 않음\n" +
@@ -233,6 +235,57 @@ function getFilters() {
   }
 
   return { showAll, cost, typeCode, classCode, dedupe, tagStates, miscTagsOnCard, text };
+}
+
+function applyFilters(filters) {
+  const showAllEl = /** @type {HTMLInputElement} */ (document.getElementById("show-all"));
+  if (showAllEl) showAllEl.checked = !!filters.showAll;
+
+  const costEl = document.querySelector(`input[name="cost"][value="${filters.cost}"]`);
+  if (costEl) /** @type {HTMLInputElement} */ (costEl).checked = true;
+
+  for (const el of document.querySelectorAll('input[name="type"]')) {
+    const input = /** @type {HTMLInputElement} */ (el);
+    input.checked = input.dataset.code === (filters.typeCode ?? "");
+  }
+
+  for (const el of document.querySelectorAll('input[name="class"]')) {
+    const input = /** @type {HTMLInputElement} */ (el);
+    input.checked = input.dataset.code === (filters.classCode ?? "");
+  }
+
+  if (bundle) {
+    for (const tag of bundle.meta.tags) {
+      const state = filters.tagStates?.[tag.code] ?? "무관";
+      const el = document.querySelector(`input[name="tag-${tag.code}"][value="${state}"]`);
+      if (el) /** @type {HTMLInputElement} */ (el).checked = true;
+    }
+  }
+
+  const miscSet = new Set(filters.miscTagsOnCard ?? filters.miscTags ?? []);
+  for (const tag of resolveMiscTags(bundle?.meta)) {
+    const el = /** @type {HTMLInputElement} */ (
+      document.getElementById(`misc-tag-${tag.code}`)
+    );
+    if (el) el.checked = miscSet.has(tag.code);
+  }
+
+  const textEl = /** @type {HTMLInputElement} */ (document.getElementById("text-filter"));
+  if (textEl && filters.text !== undefined) textEl.value = filters.text;
+}
+
+function applyCardFilterPatch(patch) {
+  const current = getFilters();
+  applyFilters({
+    ...current,
+    showAll: false,
+    cost: patch.cost,
+    typeCode: patch.typeCode,
+    classCode: patch.classCode,
+    tagStates: patch.tagStates,
+    miscTagsOnCard: new Set(patch.miscTags ?? []),
+  });
+  refresh();
 }
 
 function resolveMiscTags(meta) {
@@ -510,6 +563,14 @@ async function loadData() {
   bundle = await res.json();
   buildResultTableHead();
   buildUI(bundle.meta);
+  initCardSearch({
+    inputId: "card-search-input",
+    listId: "card-search-list",
+    statusId: "card-search-status",
+    getMeta: () => bundle?.meta ?? null,
+    helpers: { resolveMiscTags },
+    onApply: (patch) => applyCardFilterPatch(patch),
+  });
   refresh();
 }
 

@@ -1,6 +1,8 @@
 /** @typedef {{ code: string|null, label: string }} Option */
 /** @typedef {{ code: string, label: string, label_en: string }} GodMeta */
 
+import { initCardSearch } from "./card-search.js";
+
 const RUN_MODE_HELP =
   "런 모드 = 이번 플레이가 어떤 신 번뜩임 풀을 쓰는지\n" +
   "· 기본: 일반 런 (기본-{신})\n" +
@@ -682,6 +684,19 @@ function applyFilters(filters) {
     );
     if (el) el.checked = miscSet.has(tag.code);
   }
+}
+
+function applyCardFilterPatch(patch) {
+  const current = getFilters();
+  applyFilters({
+    ...current,
+    cost: patch.cost,
+    typeCode: patch.typeCode,
+    classCode: patch.classCode,
+    tagStates: patch.tagStates,
+    miscTags: patch.miscTags,
+  });
+  refresh();
 }
 
 function renderHistoryPanel() {
@@ -1375,6 +1390,14 @@ async function loadData() {
   renderHistoryPanel();
   renderComparePanel();
   updateCompareRunButton();
+  initCardSearch({
+    inputId: "card-search-input",
+    listId: "card-search-list",
+    statusId: "card-search-status",
+    getMeta: () => bundle?.meta ?? null,
+    helpers: { resolveMiscTags },
+    onApply: (patch) => applyCardFilterPatch(patch),
+  });
   refresh();
 }
 

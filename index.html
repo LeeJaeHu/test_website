@@ -8,7 +8,7 @@
       name="description"
       content="카드 조건(코스트·유형·직업·태그)에 맞는 신 번뜩임을 조회합니다. 비공식 팬 도구, 오프라인 동작."
     />
-    <link rel="stylesheet" href="style.css?v=8" />
+    <link rel="stylesheet" href="style.css?v=9" />
   </head>
   <body>
     <header class="site-header">
@@ -23,6 +23,19 @@
     <main class="layout">
       <aside class="panel filters" aria-label="카드 조건">
         <h2>카드 조건</h2>
+
+        <label class="field-block card-search-wrap">
+          <span class="field-label">카드 검색</span>
+          <input
+            type="search"
+            id="card-search-input"
+            placeholder="카드 이름·ID 검색 후 선택"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div id="card-search-list" class="card-search-list" role="listbox" hidden></div>
+          <p class="card-search-status" id="card-search-status">카드 목록 불러오는 중…</p>
+        </label>
 
         <fieldset>
           <legend>코스트 (0~4)</legend>
@@ -167,6 +180,6 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=17" type="module"></script>
+    <script src="app.js?v=18" type="module"></script>
   </body>
 </html>
