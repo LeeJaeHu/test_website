@@ -2,6 +2,7 @@
 /** @typedef {{ code: string, label: string, label_en: string }} GodMeta */
 
 import { initCardSearch } from "./card-search.js";
+import { initCardPicker } from "./card-picker.js";
 
 const RUN_MODE_HELP =
   "런 모드 = 이번 플레이가 어떤 신 번뜩임 풀을 쓰는지\n" +
@@ -1390,6 +1391,12 @@ async function loadData() {
   renderHistoryPanel();
   renderComparePanel();
   updateCompareRunButton();
+  const cardPickerApi = await initCardPicker({
+    openButtonId: "card-picker-open",
+    getMeta: () => bundle?.meta ?? null,
+    helpers: { resolveMiscTags },
+    onApply: (patch) => applyCardFilterPatch(patch),
+  });
   initCardSearch({
     inputId: "card-search-input",
     listId: "card-search-list",
@@ -1397,6 +1404,7 @@ async function loadData() {
     getMeta: () => bundle?.meta ?? null,
     helpers: { resolveMiscTags },
     onApply: (patch) => applyCardFilterPatch(patch),
+    onCardPicked: (card) => cardPickerApi?.openSparkPickerForCard(card.id),
   });
   refresh();
 }

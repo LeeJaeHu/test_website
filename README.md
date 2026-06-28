@@ -48,7 +48,10 @@ pip install openpyxl
 python export_web_data.py
 ```
 
-생성된 `web/data/lookup.json`을 commit & push.
+생성된 `web/data/*.json`과 (선택) `web/assets/portraits/`를 commit & push.
+
+**용량 참고:** `export_web_data.py`는 GitHub용으로 초상화를 128px webp 썸네일(~2KB/장)로 만듭니다.  
+`web/` 전체는 약 **2MB** 수준이면 Pages에 무리 없습니다. 게임 `bin/`·`data.pack` 등은 **push하지 마세요**.
 
 ## 로컬 미리보기
 
@@ -71,7 +74,8 @@ python -m http.server 8080
 | `common.js` | 일반 번뜩임 필터·목록 |
 | `style.css` | 스타일 |
 | `data/lookup.json` | 신 번뜩임 데이터 (`export_web_data.py` 생성) |
-| `data/common.json` | 일반 번뜩임 데이터 (`export_web_data.py` 생성) |
+| `data/cards.json` | 카드·캐릭터·번뜩임 선택 데이터 (`export_web_data.py` 생성) |
+| `assets/portraits/` | 캐릭터 썸네일 (선택, export 시 생성) |
 | `.nojekyll` | GitHub Pages Jekyll 비활성 |
 
 ## 면책

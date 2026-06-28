@@ -8,7 +8,7 @@
       name="description"
       content="카드 조건(코스트·유형·직업·태그)에 맞는 신 번뜩임을 조회합니다. 비공식 팬 도구, 오프라인 동작."
     />
-    <link rel="stylesheet" href="style.css?v=9" />
+    <link rel="stylesheet" href="style.css?v=10" />
   </head>
   <body>
     <header class="site-header">
@@ -24,18 +24,23 @@
       <aside class="panel filters" aria-label="카드 조건">
         <h2>카드 조건</h2>
 
-        <label class="field-block card-search-wrap">
-          <span class="field-label">카드 검색</span>
-          <input
-            type="search"
-            id="card-search-input"
-            placeholder="카드 이름·ID 검색 후 선택"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <div id="card-search-list" class="card-search-list" role="listbox" hidden></div>
-          <p class="card-search-status" id="card-search-status">카드 목록 불러오는 중…</p>
-        </label>
+        <div class="card-search-row">
+          <label class="field-block card-search-wrap card-search-grow">
+            <span class="field-label">카드 검색</span>
+            <input
+              type="search"
+              id="card-search-input"
+              placeholder="카드 이름·ID 검색"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <div id="card-search-list" class="card-search-list" role="listbox" hidden></div>
+          </label>
+          <button type="button" class="secondary-btn card-picker-open-btn" id="card-picker-open" title="캐릭터·카드 이미지로 선택">
+            이미지로 선택
+          </button>
+        </div>
+        <p class="card-search-status" id="card-search-status">카드 목록 불러오는 중…</p>
 
         <fieldset>
           <legend>코스트 (0~4)</legend>
@@ -172,6 +177,17 @@
       </p>
     </footer>
 
+    <dialog id="card-picker-dialog" class="card-picker-dialog">
+      <form method="dialog" class="card-picker-form">
+        <header class="card-picker-header">
+          <button type="button" class="link-btn" id="card-picker-back" hidden>← 뒤로</button>
+          <h3 id="card-picker-title">카드 선택</h3>
+          <button type="button" class="link-btn" id="card-picker-close" value="close">닫기</button>
+        </header>
+        <div id="card-picker-body" class="card-picker-body"></div>
+      </form>
+    </dialog>
+
     <dialog id="help-dialog">
       <form method="dialog">
         <h3 id="help-title"></h3>
@@ -180,6 +196,6 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=18" type="module"></script>
+    <script src="app.js?v=19" type="module"></script>
   </body>
 </html>

@@ -1,4 +1,5 @@
 import { initCardSearch } from "./card-search.js";
+import { initCardPicker } from "./card-picker.js";
 
 const TAG_STATE_HELP =
   "태그 선택 안내\n" +
@@ -563,6 +564,12 @@ async function loadData() {
   bundle = await res.json();
   buildResultTableHead();
   buildUI(bundle.meta);
+  const cardPickerApi = await initCardPicker({
+    openButtonId: "card-picker-open",
+    getMeta: () => bundle?.meta ?? null,
+    helpers: { resolveMiscTags },
+    onApply: (patch) => applyCardFilterPatch(patch),
+  });
   initCardSearch({
     inputId: "card-search-input",
     listId: "card-search-list",
@@ -570,6 +577,7 @@ async function loadData() {
     getMeta: () => bundle?.meta ?? null,
     helpers: { resolveMiscTags },
     onApply: (patch) => applyCardFilterPatch(patch),
+    onCardPicked: (card) => cardPickerApi?.openSparkPickerForCard(card.id),
   });
   refresh();
 }

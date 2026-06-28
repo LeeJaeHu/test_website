@@ -1,6 +1,6 @@
 /** @typedef {{ id: string, name: string, name_key?: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], exhaust?: boolean, source?: string }} CardCatalogEntry */
 
-export const CARDS_DATA_V = 1;
+export const CARDS_DATA_V = 2;
 
 /** @param {CardCatalogEntry} card @param {object} meta @param {{ resolveMiscTags: (meta: object) => { code: string }[] }} helpers */
 export function cardToFilterPatch(card, meta, helpers) {
@@ -71,6 +71,7 @@ function typeShort(typeCode) {
  * @param {() => object|null} options.getMeta
  * @param {{ resolveMiscTags: (meta: object) => { code: string }[] }} options.helpers
  * @param {(patch: object, card: CardCatalogEntry) => void} options.onApply
+ * @param {(card: CardCatalogEntry) => void} [options.onCardPicked] 검색 선택 후 번뜩임 선택으로 이동
  */
 export async function initCardSearch(options) {
   const input = /** @type {HTMLInputElement|null} */ (
@@ -175,6 +176,12 @@ export async function initCardSearch(options) {
   }
 
   function selectCard(card) {
+    if (options.onCardPicked) {
+      options.onCardPicked(card);
+      input.value = card.name;
+      hideList();
+      return;
+    }
     const meta = options.getMeta();
     if (!meta) return;
     const patch = cardToFilterPatch(card, meta, options.helpers);
