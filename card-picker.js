@@ -1,7 +1,7 @@
 import { cardToFilterPatch, CARDS_DATA_V } from "./card-search.js";
 
 /** @typedef {{ id: number, name: string, portrait: string, card_count: number }} Combatant */
-/** @typedef {{ id: string, result_id: string, kind: string, name?: string }} UniqueSpark */
+/** @typedef {{ id: string, result_id: string, kind: string, label?: string, summary?: string, name?: string }} UniqueSpark */
 /** @typedef {{ id: string, name: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], exhaust?: boolean, combatant_id?: number|null, sct_name?: string, unique?: UniqueSpark[], commons?: string[], is_spark_result?: boolean }} PickerCard */
 /** @typedef {{ id: string, description: string, cost_delta: number, weight?: number }} CommonSpark */
 
@@ -36,27 +36,71 @@ function cardTypeClass(typeCode) {
   return "card-tile-neutral";
 }
 
-function cardTileHtml(card, { compact = false } = {}) {
+function formatTagList(card) {
+  const parts = [];
+  if (card.tags?.length) {
+    parts.push(...card.tags.map((t) => TAG_LABELS[t] ?? t));
+  }
+  if (card.talents?.length) {
+    parts.push(...card.talents);
+  }
+  if (card.exhaust && !card.tags?.includes("exhaust")) {
+    parts.push("소멸");
+  }
+  return parts.length ? parts.join(", ") : "태그 없음";
+}
+
+const TAG_LABELS = {
+  targetable: "대상지정",
+  shield: "보호막",
+  cure: "치유",
+  draw: "드로우",
+  exhaust: "소멸",
+  strength: "사기",
+  dexterity: "결의",
+  dmgresist: "피해 저항",
+  nine_exhaust: "9중 소진",
+  vulnerable: "취약",
+  weak: "약화",
+  mark: "표식",
+  pain: "고통",
+  counter: "카운터",
+  turncounter: "턴 카운터",
+  dmgdecrease: "피해 감소",
+  egodmg: "에고 피해",
+  ap: "행동 PT",
+  ep: "에너지 PT",
+};
+
+function cardTileHtml(card, { compact = false, headline, subline } = {}) {
   const cost = card.filter_cost ?? card.cost;
   const cls = cardTypeClass(card.type);
-  const sub = compact
-    ? `${cost}코 · ${typeShort(card.type)}`
-    : `${cost}코 · ${typeShort(card.type)} · ${card.id}`;
+  const title = headline ?? card.name;
+  const sub =
+    subline ??
+    (compact
+      ? `${cost}코 · ${typeShort(card.type)}`
+      : `${cost}코 · ${typeShort(card.type)} · ${formatTagList(card)}`);
   return `<article class="picker-card-tile ${cls}" data-card-id="${escapeHtml(card.id)}" title="${escapeHtml(card.name)}">
     <div class="picker-card-art" aria-hidden="true"><span class="picker-card-cost">${cost}</span></div>
     <div class="picker-card-caption">
-      <strong>${escapeHtml(card.name)}</strong>
+      <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(sub)}</span>
     </div>
   </article>`;
 }
 
-function sparkTileHtml({ id, title, subtitle, kind, selected }) {
-  const kindClass = kind ? `spark-tile-${kind}` : "";
-  return `<button type="button" class="picker-spark-tile ${kindClass}${selected ? " is-selected" : ""}" data-spark-id="${escapeHtml(id)}" data-spark-kind="${escapeHtml(kind || "")}">
-    <span class="picker-spark-icon" aria-hidden="true"></span>
-    <strong>${escapeHtml(title)}</strong>
-    <span>${escapeHtml(subtitle)}</span>
+function cardTileButtonHtml(card, { headline, subline, selected = false, extraClass = "" }) {
+  const cost = card.filter_cost ?? card.cost;
+  const cls = cardTypeClass(card.type);
+  const title = headline ?? card.name;
+  const sub = subline ?? `${cost}코 · ${typeShort(card.type)} · ${formatTagList(card)}`;
+  return `<button type="button" class="picker-card-tile picker-card-tile-btn ${cls} ${extraClass}${selected ? " is-selected" : ""}" title="${escapeHtml(sub)}">
+    <div class="picker-card-art" aria-hidden="true"><span class="picker-card-cost">${cost}</span></div>
+    <div class="picker-card-caption">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(sub)}</span>
+    </div>
   </button>`;
 }
 
@@ -92,7 +136,7 @@ export function resolveCardFilterPatch(baseCard, uniqueSpark, commonSparkId, met
 function buildStatusLabel(result) {
   const parts = [result.card.name];
   if (result.uniqueSpark) {
-    parts.push(`고유: ${result.uniqueSpark.name || result.uniqueSpark.id}`);
+    parts.push(`고유: ${result.uniqueSpark.label || result.uniqueSpark.summary || result.uniqueSpark.id}`);
   }
   if (result.commonSparkId && commonSparks[result.commonSparkId]) {
     const cs = commonSparks[result.commonSparkId];
@@ -196,42 +240,44 @@ function showSparkStep(baseCard) {
 
   const preview = document.createElement("div");
   preview.className = "picker-spark-preview";
-  preview.innerHTML = cardTileHtml(baseCard, { compact: true });
+  preview.innerHTML = cardTileHtml(baseCard, {
+    compact: true,
+    subline: `${baseCard.filter_cost ?? baseCard.cost}코 · ${typeShort(baseCard.type)} · ${formatTagList(baseCard)}`,
+  });
   body.appendChild(preview);
 
   const uniqueSection = document.createElement("section");
   uniqueSection.className = "picker-spark-section";
-  uniqueSection.innerHTML = `<h4>고유 번뜩임</h4>`;
+  uniqueSection.innerHTML = `<h4>고유 번뜩임</h4><p class="hint">색·코스트·태그로 변화를 확인하세요. 이름이 없는 변형은 요약으로 표시됩니다.</p>`;
   const uniqueGrid = document.createElement("div");
-  uniqueGrid.className = "picker-grid picker-spark-grid";
+  uniqueGrid.className = "picker-grid picker-card-grid picker-spark-card-grid";
 
   uniqueGrid.appendChild(
     (() => {
       const el = document.createElement("div");
-      el.innerHTML = sparkTileHtml({
-        id: "__base__",
-        title: "원본",
-        subtitle: "번뜩임 없음",
-        kind: "base",
+      el.innerHTML = cardTileButtonHtml(baseCard, {
+        headline: "원본",
+        subline: `${baseCard.filter_cost ?? baseCard.cost}코 · ${typeShort(baseCard.type)} · ${formatTagList(baseCard)}`,
         selected: true,
+        extraClass: "spark-tile-base",
       });
       const btn = el.firstElementChild;
+      btn.dataset.sparkId = "__base__";
       btn.addEventListener("click", () => selectUnique(null, uniqueGrid));
       return btn;
     })()
   );
 
   for (const u of baseCard.unique ?? []) {
-    const result = cardsById.get(u.result_id);
+    const result = cardsById.get(u.result_id) ?? baseCard;
     const el = document.createElement("div");
-    el.innerHTML = sparkTileHtml({
-      id: u.id,
-      title: u.name || u.result_id,
-      subtitle: u.kind === "pot" ? "포텐셜" : "고유 번뜩임",
-      kind: "unique",
-      selected: false,
+    el.innerHTML = cardTileButtonHtml(result, {
+      headline: u.label || "고유",
+      subline: u.summary || formatTagList(result),
+      extraClass: "spark-tile-unique",
     });
     const btn = el.firstElementChild;
+    btn.dataset.sparkId = u.id;
     btn.addEventListener("click", () => selectUnique(u, uniqueGrid));
     uniqueGrid.appendChild(btn);
   }
@@ -240,39 +286,32 @@ function showSparkStep(baseCard) {
 
   const commonSection = document.createElement("section");
   commonSection.className = "picker-spark-section";
-  commonSection.innerHTML = `<h4>일반 번뜩임</h4><p class="hint">선택 시 카드 코스트 등이 변할 수 있습니다 (신 번뜩임 조회 전 상태).</p>`;
+  commonSection.innerHTML = `<h4>일반 번뜩임</h4><p class="hint">이 카드에 부여 가능한 일반 번뜩임 (${(baseCard.commons ?? []).length}종)</p>`;
   const commonGrid = document.createElement("div");
-  commonGrid.className = "picker-grid picker-spark-grid";
+  commonGrid.className = "picker-spark-list";
 
-  commonGrid.appendChild(
-    (() => {
-      const el = document.createElement("div");
-      el.innerHTML = sparkTileHtml({
-        id: "__none__",
-        title: "없음",
-        subtitle: "일반 번뜩임 없음",
-        kind: "none",
-        selected: true,
-      });
-      const btn = el.firstElementChild;
-      btn.addEventListener("click", () => selectCommon(null, commonGrid));
-      return btn;
-    })()
-  );
+  const noneBtn = document.createElement("button");
+  noneBtn.type = "button";
+  noneBtn.className = "picker-common-item is-selected";
+  noneBtn.dataset.sparkId = "__none__";
+  noneBtn.innerHTML = `<strong>없음</strong><span>일반 번뜩임 적용 안 함</span>`;
+  noneBtn.addEventListener("click", () => selectCommon(null, commonGrid));
+  commonGrid.appendChild(noneBtn);
 
   for (const sid of baseCard.commons ?? []) {
     const cs = commonSparks[sid];
     if (!cs) continue;
-    const el = document.createElement("div");
-    const delta = cs.cost_delta ? `코스트 ${cs.cost_delta > 0 ? "+" : ""}${cs.cost_delta}` : "효과";
-    el.innerHTML = sparkTileHtml({
-      id: sid,
-      title: cs.description.slice(0, 36) || sid,
-      subtitle: delta,
-      kind: "common",
-      selected: false,
-    });
-    const btn = el.firstElementChild;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "picker-common-item";
+    btn.dataset.sparkId = sid;
+    const delta =
+      cs.cost_delta < 0
+        ? `코스트 ${cs.cost_delta}`
+        : cs.cost_delta > 0
+          ? `코스트 +${cs.cost_delta}`
+          : "";
+    btn.innerHTML = `<strong>${escapeHtml(cs.description || sid)}</strong><span>${escapeHtml([delta, sid].filter(Boolean).join(" · "))}</span>`;
     btn.addEventListener("click", () => selectCommon(sid, commonGrid));
     commonGrid.appendChild(btn);
   }
@@ -295,20 +334,17 @@ function showSparkStep(baseCard) {
 
 function selectUnique(unique, grid) {
   pickerCtx.selectedUnique = unique;
-  grid.querySelectorAll(".picker-spark-tile").forEach((el) => {
-    const kid = el.getAttribute("data-spark-kind");
-    el.classList.toggle("is-selected", kid === "base" ? !unique : el.getAttribute("data-spark-id") === unique?.id);
+  grid.querySelectorAll(".picker-card-tile-btn").forEach((el) => {
+    const sid = el.dataset.sparkId;
+    el.classList.toggle("is-selected", unique ? sid === unique.id : sid === "__base__");
   });
 }
 
 function selectCommon(commonId, grid) {
   pickerCtx.selectedCommon = commonId;
-  grid.querySelectorAll(".picker-spark-tile").forEach((el) => {
-    const kid = el.getAttribute("data-spark-kind");
-    el.classList.toggle(
-      "is-selected",
-      kid === "none" ? !commonId : el.getAttribute("data-spark-id") === commonId
-    );
+  grid.querySelectorAll(".picker-common-item").forEach((el) => {
+    const sid = el.dataset.sparkId;
+    el.classList.toggle("is-selected", commonId ? sid === commonId : sid === "__none__");
   });
 }
 

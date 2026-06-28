@@ -468,6 +468,80 @@ label.inline {
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
+.picker-card-tile-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.picker-card-tile-btn.is-selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.55);
+}
+
+.picker-spark-card-grid .picker-card-caption strong {
+  font-size: 0.76rem;
+}
+
+.picker-spark-card-grid .picker-card-caption span {
+  font-size: 0.66rem;
+  line-height: 1.35;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.picker-spark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 14rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem;
+}
+
+.picker-common-item {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.picker-common-item strong {
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.picker-common-item span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.picker-common-item:hover {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.picker-common-item.is-selected {
+  border-color: var(--accent);
+  background: rgba(96, 165, 250, 0.12);
+}
+
 .picker-card-tile:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);

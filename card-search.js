@@ -1,6 +1,6 @@
 /** @typedef {{ id: string, name: string, name_key?: string, cost: number, filter_cost: number, type: string, class: string|null, tags: string[], exhaust?: boolean, source?: string }} CardCatalogEntry */
 
-export const CARDS_DATA_V = 2;
+export const CARDS_DATA_V = 3;
 
 /** @param {CardCatalogEntry} card @param {object} meta @param {{ resolveMiscTags: (meta: object) => { code: string }[] }} helpers */
 export function cardToFilterPatch(card, meta, helpers) {
